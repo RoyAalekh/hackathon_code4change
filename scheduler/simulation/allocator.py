@@ -115,8 +115,8 @@ class CourtroomAllocator:
                 self.capacity_rejections += 1
                 continue
 
-            # Track if courtroom changed
-            if case.courtroom_id is not None and case.courtroom_id != courtroom_id:
+            # Track if courtroom changed (only count actual switches, not initial assignments)
+            if case.courtroom_id is not None and case.courtroom_id != 0 and case.courtroom_id != courtroom_id:
                 self.allocation_changes += 1
 
             # Assign case to courtroom

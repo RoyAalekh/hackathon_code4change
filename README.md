@@ -56,19 +56,45 @@ This project delivers a complete court scheduling system for the Code4Change hac
 
 ## Quick Start
 
-### 1. Run EDA Pipeline
+### Using the CLI (Recommended)
+
+The system provides a unified CLI for all operations:
+
+```bash
+# See all available commands
+court-scheduler --help
+
+# Run EDA pipeline
+court-scheduler eda
+
+# Generate test cases
+court-scheduler generate --cases 10000 --output data/generated/cases.csv
+
+# Run simulation
+court-scheduler simulate --days 384 --start 2024-01-01 --log-dir data/sim_runs/test_run
+
+# Run full workflow (EDA -> Generate -> Simulate)
+court-scheduler workflow --cases 10000 --days 384
+```
+
+### Legacy Methods (Still Supported)
+
+<details>
+<summary>Click to see old script-based approach</summary>
+
+#### 1. Run EDA Pipeline
 ```bash
 # Extract parameters from historical data
 uv run python main.py
 ```
 
-### 2. Generate Case Dataset
+#### 2. Generate Case Dataset
 ```bash
-# Generate 10,000 synthetic cases with realistic distributions
+# Generate 10,000 synthetic cases
 uv run python -c "from scheduler.data.case_generator import CaseGenerator; from datetime import date; from pathlib import Path; gen = CaseGenerator(start=date(2022,1,1), end=date(2023,12,31), seed=42); cases = gen.generate(10000, stage_mix_auto=True); CaseGenerator.to_csv(cases, Path('data/generated/cases.csv')); print(f'Generated {len(cases)} cases')"
 ```
 
-### 3. Run Simulation
+#### 3. Run Simulation
 ```bash
 # 2-year simulation with ripeness classification
 uv run python scripts/simulate.py --days 384 --start 2024-01-01 --log-dir data/sim_runs/test_run
@@ -76,6 +102,7 @@ uv run python scripts/simulate.py --days 384 --start 2024-01-01 --log-dir data/s
 # Quick 60-day test
 uv run python scripts/simulate.py --days 60
 ```
+</details>
 
 ## Usage
 

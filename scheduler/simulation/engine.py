@@ -279,10 +279,12 @@ class CourtSim:
         
         # Build allocation dict for compatibility with existing loop
         allocation: Dict[int, List[Case]] = {r.courtroom_id: [] for r in self.rooms}
+        seen_cases = set()  # Track seen case_ids to prevent duplicates
         for case in cases_to_allocate:
-            if case.case_id in case_to_courtroom:
+            if case.case_id in case_to_courtroom and case.case_id not in seen_cases:
                 courtroom_id = case_to_courtroom[case.case_id]
                 allocation[courtroom_id].append(case)
+                seen_cases.add(case.case_id)
         
         return allocation
 
@@ -336,11 +338,34 @@ class CourtSim:
             sw.writerow(["case_id", "courtroom_id", "policy", "age_days", "readiness_score", "urgent", "stage", "days_since_last_hearing", "stage_ready_date"])
         for room in self.rooms:
             for case in allocation[room.courtroom_id]:
+                # Skip if case already disposed (safety check)
+                if case.status == CaseStatus.DISPOSED:
+                    continue
+                
                 if room.schedule_case(current, case.case_id):
                     # Mark case as scheduled (for no-case-left-behind tracking)
                     case.mark_scheduled(current)
                     
-                    self._events.write(current, "scheduled", case.case_id, case_type=case.case_type, stage=case.current_stage, courtroom_id=room.courtroom_id)
+                    # Calculate adjournment boost for logging
+                    import math
+                    adj_boost = 0.0
+                    if case.status == CaseStatus.ADJOURNED and case.hearing_count > 0:
+                        adj_boost = math.exp(-case.days_since_last_hearing / 21)
+                    
+                    # Log with full decision metadata
+                    self._events.write(
+                        current, "scheduled", case.case_id, 
+                        case_type=case.case_type, 
+                        stage=case.current_stage, 
+                        courtroom_id=room.courtroom_id,
+                        priority_score=case.get_priority_score(),
+                        age_days=case.age_days,
+                        readiness_score=case.readiness_score,
+                        is_urgent=case.is_urgent,
+                        adj_boost=adj_boost,
+                        ripeness_status=case.ripeness_status,
+                        days_since_hearing=case.days_since_last_hearing
+                    )
                     day_total += 1
                     self._hearings_total += 1
                     # log suggestive rationale
@@ -437,6 +462,32 @@ class CourtSim:
         
         # Generate courtroom allocation summary
         print(f"\n{self.allocator.get_courtroom_summary()}")
+        
+        # Generate comprehensive case status breakdown
+        total_cases = len(self.cases)
+        disposed_cases = [c for c in self.cases if c.status == CaseStatus.DISPOSED]
+        scheduled_at_least_once = [c for c in self.cases if c.last_scheduled_date is not None]
+        never_scheduled = [c for c in self.cases if c.last_scheduled_date is None]
+        scheduled_but_not_disposed = [c for c in scheduled_at_least_once if c.status != CaseStatus.DISPOSED]
+        
+        print(f"\n=== Case Status Breakdown ===")
+        print(f"Total cases in system: {total_cases:,}")
+        print(f"\nScheduling outcomes:")
+        print(f"  Scheduled at least once: {len(scheduled_at_least_once):,} ({len(scheduled_at_least_once)/total_cases*100:.1f}%)")
+        print(f"    - Disposed: {len(disposed_cases):,} ({len(disposed_cases)/total_cases*100:.1f}%)")
+        print(f"    - Active (not disposed): {len(scheduled_but_not_disposed):,} ({len(scheduled_but_not_disposed)/total_cases*100:.1f}%)")
+        print(f"  Never scheduled: {len(never_scheduled):,} ({len(never_scheduled)/total_cases*100:.1f}%)")
+        
+        if scheduled_at_least_once:
+            avg_hearings = sum(c.hearing_count for c in scheduled_at_least_once) / len(scheduled_at_least_once)
+            print(f"\nAverage hearings per scheduled case: {avg_hearings:.1f}")
+        
+        if disposed_cases:
+            avg_hearings_to_disposal = sum(c.hearing_count for c in disposed_cases) / len(disposed_cases)
+            avg_days_to_disposal = sum((c.disposal_date - c.filed_date).days for c in disposed_cases) / len(disposed_cases)
+            print(f"\nDisposal metrics:")
+            print(f"  Average hearings to disposal: {avg_hearings_to_disposal:.1f}")
+            print(f"  Average days to disposal: {avg_days_to_disposal:.0f}")
         
         return CourtSimResult(
             hearings_total=self._hearings_total,
