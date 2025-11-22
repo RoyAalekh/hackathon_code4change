@@ -21,6 +21,7 @@ import random
 from scheduler.core.case import Case, CaseStatus
 from scheduler.core.courtroom import Courtroom
 from scheduler.core.ripeness import RipenessClassifier, RipenessStatus
+from scheduler.core.algorithm import SchedulingAlgorithm, SchedulingResult
 from scheduler.utils.calendar import CourtCalendar
 from scheduler.data.param_loader import load_parameters
 from scheduler.simulation.events import EventWriter
@@ -108,6 +109,12 @@ class CourtSim:
             num_courtrooms=self.cfg.courtrooms,
             per_courtroom_capacity=self.cfg.daily_capacity,
             strategy=AllocationStrategy.LOAD_BALANCED
+        )
+        # scheduling algorithm (NEW - replaces inline logic)
+        self.algorithm = SchedulingAlgorithm(
+            policy=self.policy,
+            allocator=self.allocator,
+            min_gap_days=MIN_GAP_BETWEEN_HEARINGS
         )
 
     # --- helpers -------------------------------------------------------------
@@ -230,63 +237,37 @@ class CourtSim:
                     )
 
     # --- daily scheduling policy --------------------------------------------
-    def _choose_cases_for_day(self, current: date) -> Dict[int, List[Case]]:
+    def _choose_cases_for_day(self, current: date) -> SchedulingResult:
+        """Use SchedulingAlgorithm to schedule cases for the day.
+        
+        This replaces the previous inline scheduling logic with a call to the
+        standalone algorithm module. The algorithm handles:
+        - Ripeness filtering
+        - Eligibility checks
+        - Policy prioritization
+        - Courtroom allocation
+        - Explanation generation
+        """
         # Periodic ripeness re-evaluation (every 7 days)
         days_since_eval = (current - self._last_ripeness_eval).days
         if days_since_eval >= 7:
             self._evaluate_ripeness(current)
             self._last_ripeness_eval = current
         
-        # filter eligible first (fast check before expensive updates)
-        candidates = [c for c in self.cases if c.status != CaseStatus.DISPOSED]
+        # Call algorithm to schedule day
+        # Note: No overrides in baseline simulation - that's for override demonstration runs
+        result = self.algorithm.schedule_day(
+            cases=self.cases,
+            courtrooms=self.rooms,
+            current_date=current,
+            overrides=None,  # No overrides in baseline simulation
+            preferences=None  # No judge preferences in baseline simulation
+        )
         
-        # Update age/readiness for all candidates BEFORE checking eligibility
-        for c in candidates:
-            c.update_age(current)
-            c.compute_readiness_score()
+        # Update stats from algorithm result
+        self._unripe_filtered += result.ripeness_filtered
         
-        # Filter by ripeness (NEW - critical for bottleneck detection)
-        ripe_candidates = []
-        for c in candidates:
-            ripeness = RipenessClassifier.classify(c, current)
-            
-            # Update case ripeness status (compare string values)
-            if ripeness.value != c.ripeness_status:
-                if ripeness.is_ripe():
-                    c.mark_ripe(current)
-                else:
-                    reason = RipenessClassifier.get_ripeness_reason(ripeness)
-                    c.mark_unripe(ripeness, reason, current)
-            
-            # Only schedule RIPE cases
-            if ripeness.is_ripe():
-                ripe_candidates.append(c)
-            else:
-                self._unripe_filtered += 1
-        
-        # filter eligible (ready for scheduling) - now from ripe cases only
-        eligible = [c for c in ripe_candidates if c.is_ready_for_scheduling(MIN_GAP_BETWEEN_HEARINGS)]
-        # delegate prioritization to policy
-        eligible = self.policy.prioritize(eligible, current)
-        
-        # Dynamic courtroom allocation (NEW - replaces fixed round-robin)
-        # Limit to total daily capacity across all courtrooms
-        total_capacity = sum(r.get_capacity_for_date(current) for r in self.rooms)
-        cases_to_allocate = eligible[:total_capacity]
-        
-        # Allocate cases to courtrooms using load balancing
-        case_to_courtroom = self.allocator.allocate(cases_to_allocate, current)
-        
-        # Build allocation dict for compatibility with existing loop
-        allocation: Dict[int, List[Case]] = {r.courtroom_id: [] for r in self.rooms}
-        seen_cases = set()  # Track seen case_ids to prevent duplicates
-        for case in cases_to_allocate:
-            if case.case_id in case_to_courtroom and case.case_id not in seen_cases:
-                courtroom_id = case_to_courtroom[case.case_id]
-                allocation[courtroom_id].append(case)
-                seen_cases.add(case.case_id)
-        
-        return allocation
+        return result
 
     # --- main loop -----------------------------------------------------------
     def _expected_daily_filings(self, current: date) -> int:
@@ -323,7 +304,7 @@ class CourtSim:
         # inflow = self._expected_daily_filings(current)
         # if inflow:
         #     self._file_new_cases(current, inflow)
-        allocation = self._choose_cases_for_day(current)
+        result = self._choose_cases_for_day(current)
         capacity_today = sum(self.cfg.daily_capacity for _ in self.rooms)
         self._capacity_offered += capacity_today
         day_heard = 0
@@ -337,7 +318,7 @@ class CourtSim:
             sw = csv.writer(sf)
             sw.writerow(["case_id", "courtroom_id", "policy", "age_days", "readiness_score", "urgent", "stage", "days_since_last_hearing", "stage_ready_date"])
         for room in self.rooms:
-            for case in allocation[room.courtroom_id]:
+            for case in result.scheduled_cases.get(room.courtroom_id, []):
                 # Skip if case already disposed (safety check)
                 if case.status == CaseStatus.DISPOSED:
                     continue
