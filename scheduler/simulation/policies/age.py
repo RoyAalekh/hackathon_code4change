@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
-from scheduler.simulation.scheduler import SchedulerPolicy
+from scheduler.core.policy import SchedulerPolicy
 from scheduler.core.case import Case
 
 

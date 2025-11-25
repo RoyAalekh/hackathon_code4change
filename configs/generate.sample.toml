@@ -1,0 +1,6 @@
+# Example config for case generation
+n_cases = 10000
+start = "2022-01-01"
+end = "2023-12-31"
+output = "data/generated/cases.csv"
+seed = 42

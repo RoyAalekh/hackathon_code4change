@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 from datetime import date
 from pathlib import Path
-import sys, os
 
 # Ensure project root on sys.path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+from scheduler.core.case import CaseStatus
 from scheduler.data.case_generator import CaseGenerator
-from scheduler.simulation.engine import CourtSim, CourtSimConfig
 from scheduler.metrics.basic import gini
+from scheduler.simulation.engine import CourtSim, CourtSimConfig
 
 
 def main():
@@ -52,7 +54,6 @@ def main():
     allocator_stats = sim.allocator.get_utilization_stats()
 
     # Fairness/report: disposal times
-    from scheduler.core.case import CaseStatus
     disp_times = [ (c.disposal_date - c.filed_date).days for c in cases if c.disposal_date is not None and c.status == CaseStatus.DISPOSED ]
     gini_disp = gini(disp_times) if disp_times else 0.0
     
