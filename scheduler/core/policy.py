@@ -1,7 +1,7 @@
-"""Base scheduler interface for policy implementations.
+"""Base scheduler policy interface for the core algorithm.
 
 This module defines the abstract interface that all scheduling policies must implement.
-Each policy decides which cases to schedule on a given day based on different criteria.
+Moved to core to avoid circular dependency between core.algorithm and simulation.policies.
 """
 from __future__ import annotations
 

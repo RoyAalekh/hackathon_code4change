@@ -50,7 +50,6 @@ def extract_parameters() -> None:
             "ORDERS / JUDGMENT",
             "FINAL DISPOSAL",
             "OTHER",
-            "NA",
         ]
         order_idx = {s: i for i, s in enumerate(STAGE_ORDER)}
 
@@ -62,12 +61,13 @@ def extract_parameters() -> None:
                     pl.col(stage_col)
                     .fill_null("NA")
                     .map_elements(
-                        lambda s: s if s in STAGE_ORDER else ("OTHER" if s is not None else "NA")
+                        lambda s: s if s in STAGE_ORDER else ("OTHER" if s and s != "NA" else None)
                     )
                     .alias("STAGE"),
                     pl.col("BusinessOnDate").alias("DT"),
                 ]
             )
+            .filter(pl.col("STAGE").is_not_null())  # Filter out NA/None stages
             .with_columns(
                 [
                     (pl.col("STAGE") != pl.col("STAGE").shift(1))

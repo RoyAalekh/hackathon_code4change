@@ -1,0 +1,10 @@
+# Example config for simulation
+cases = "data/generated/cases.csv"
+days = 384
+# start = "2024-01-01"         # optional; if omitted, uses max filed_date in cases
+policy = "readiness"            # readiness|fifo|age
+seed = 42
+# duration_percentile = "median" # median|p90
+# courtrooms = 5                 # optional; uses engine default if omitted
+# daily_capacity = 151           # optional; uses engine default if omitted
+# log_dir = "data/sim_runs/example"
