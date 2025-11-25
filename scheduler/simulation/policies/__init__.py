@@ -1,5 +1,5 @@
 """Scheduling policy implementations."""
-from scheduler.simulation.scheduler import SchedulerPolicy
+from scheduler.core.policy import SchedulerPolicy
 from scheduler.simulation.policies.fifo import FIFOPolicy
 from scheduler.simulation.policies.age import AgeBasedPolicy
 from scheduler.simulation.policies.readiness import ReadinessPolicy

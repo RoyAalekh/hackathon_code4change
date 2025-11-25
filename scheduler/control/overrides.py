@@ -36,6 +36,12 @@ class Override:
     date_affected: Optional[date] = None
     courtroom_id: Optional[int] = None
     
+    # Algorithm-specific attributes
+    make_ripe: Optional[bool] = None  # For RIPENESS overrides
+    new_position: Optional[int] = None  # For REORDER/ADD_CASE overrides  
+    new_priority: Optional[float] = None  # For PRIORITY overrides
+    new_capacity: Optional[int] = None  # For CAPACITY overrides
+    
     def to_dict(self) -> dict:
         """Convert to dictionary for logging."""
         return {
@@ -48,7 +54,11 @@ class Override:
             "new_value": self.new_value,
             "reason": self.reason,
             "date_affected": self.date_affected.isoformat() if self.date_affected else None,
-            "courtroom_id": self.courtroom_id
+            "courtroom_id": self.courtroom_id,
+            "make_ripe": self.make_ripe,
+            "new_position": self.new_position,
+            "new_priority": self.new_priority,
+            "new_capacity": self.new_capacity
         }
     
     def to_readable_text(self) -> str:
@@ -87,6 +97,7 @@ class JudgePreferences:
     blocked_dates: list[date] = field(default_factory=list)  # Vacation, illness
     min_gap_overrides: dict[str, int] = field(default_factory=dict)  # Per-case gap overrides
     case_type_preferences: dict[str, list[str]] = field(default_factory=dict)  # Day-of-week preferences
+    capacity_overrides: dict[int, int] = field(default_factory=dict)  # Per-courtroom capacity overrides
     
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -95,7 +106,8 @@ class JudgePreferences:
             "daily_capacity_override": self.daily_capacity_override,
             "blocked_dates": [d.isoformat() for d in self.blocked_dates],
             "min_gap_overrides": self.min_gap_overrides,
-            "case_type_preferences": self.case_type_preferences
+            "case_type_preferences": self.case_type_preferences,
+            "capacity_overrides": self.capacity_overrides
         }
 
 
@@ -141,6 +153,62 @@ class CauseListDraft:
 
 class OverrideValidator:
     """Validates override requests against constraints."""
+    
+    def __init__(self):
+        self.errors: list[str] = []
+    
+    def validate(self, override: Override) -> bool:
+        """Validate an override against all applicable constraints.
+        
+        Args:
+            override: Override to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        self.errors.clear()
+        
+        if override.override_type == OverrideType.RIPENESS:
+            valid, error = self.validate_ripeness_override(
+                override.case_id,
+                override.old_value or "",
+                override.new_value or "",
+                override.reason
+            )
+            if not valid:
+                self.errors.append(error)
+                return False
+        
+        elif override.override_type == OverrideType.CAPACITY:
+            if override.new_capacity is not None:
+                valid, error = self.validate_capacity_override(
+                    int(override.old_value) if override.old_value else 0,
+                    override.new_capacity
+                )
+                if not valid:
+                    self.errors.append(error)
+                    return False
+        
+        elif override.override_type == OverrideType.PRIORITY:
+            if override.new_priority is not None:
+                if not (0 <= override.new_priority <= 1.0):
+                    self.errors.append("Priority must be between 0 and 1.0")
+                    return False
+        
+        # Basic validation
+        if not override.case_id:
+            self.errors.append("Case ID is required")
+            return False
+        
+        if not override.judge_id:
+            self.errors.append("Judge ID is required")
+            return False
+        
+        return True
+    
+    def get_errors(self) -> list[str]:
+        """Get validation errors from last validation."""
+        return self.errors.copy()
     
     @staticmethod
     def validate_ripeness_override(

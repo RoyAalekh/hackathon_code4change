@@ -17,32 +17,45 @@ from typing import Dict, List, Optional, Tuple
 from scheduler.core.case import Case, CaseStatus
 from scheduler.core.courtroom import Courtroom
 from scheduler.core.ripeness import RipenessClassifier, RipenessStatus
-from scheduler.simulation.policies import SchedulerPolicy
+from scheduler.core.policy import SchedulerPolicy
 from scheduler.simulation.allocator import CourtroomAllocator, AllocationStrategy
 from scheduler.control.explainability import ExplainabilityEngine, SchedulingExplanation
 from scheduler.control.overrides import (
     Override,
     OverrideType,
     JudgePreferences,
+    OverrideValidator,
 )
 from scheduler.data.config import MIN_GAP_BETWEEN_HEARINGS
 
 
 @dataclass
 class SchedulingResult:
-    """Result of single-day scheduling with full transparency."""
+    """Result of single-day scheduling with full transparency.
+    
+    Attributes:
+        scheduled_cases: Mapping of courtroom_id to list of scheduled cases
+        explanations: Decision explanations for each case (scheduled + sample unscheduled)
+        applied_overrides: List of overrides that were successfully applied
+        unscheduled_cases: Cases not scheduled with reasons (e.g., unripe, capacity full)
+        ripeness_filtered: Count of cases filtered due to unripe status
+        capacity_limited: Count of cases that didn't fit due to courtroom capacity
+        scheduling_date: Date scheduled for
+        policy_used: Name of scheduling policy used (FIFO, Age, Readiness)
+        total_scheduled: Total number of cases scheduled (calculated)
+    """
     
     # Core output
-    scheduled_cases: Dict[int, List[Case]]  # courtroom_id -> cases
+    scheduled_cases: Dict[int, List[Case]]
     
     # Transparency
-    explanations: Dict[str, SchedulingExplanation]  # case_id -> explanation
-    applied_overrides: List[Override]  # Overrides that were applied
+    explanations: Dict[str, SchedulingExplanation]
+    applied_overrides: List[Override]
     
     # Diagnostics
-    unscheduled_cases: List[Tuple[Case, str]]  # (case, reason)
-    ripeness_filtered: int  # Count of unripe cases filtered
-    capacity_limited: int  # Cases that couldn't fit due to capacity
+    unscheduled_cases: List[Tuple[Case, str]]
+    ripeness_filtered: int
+    capacity_limited: int
     
     # Metadata
     scheduling_date: date
@@ -99,7 +112,8 @@ class SchedulingAlgorithm:
         courtrooms: List[Courtroom],
         current_date: date,
         overrides: Optional[List[Override]] = None,
-        preferences: Optional[JudgePreferences] = None
+        preferences: Optional[JudgePreferences] = None,
+        max_explanations_unscheduled: int = 100
     ) -> SchedulingResult:
         """Schedule cases for a single day with override support.
         
@@ -109,6 +123,7 @@ class SchedulingAlgorithm:
             current_date: Date to schedule for
             overrides: Optional manual overrides to apply
             preferences: Optional judge preferences/constraints
+            max_explanations_unscheduled: Max unscheduled cases to generate explanations for
             
         Returns:
             SchedulingResult with scheduled cases, explanations, and audit trail
@@ -117,6 +132,17 @@ class SchedulingAlgorithm:
         unscheduled: List[Tuple[Case, str]] = []
         applied_overrides: List[Override] = []
         explanations: Dict[str, SchedulingExplanation] = {}
+        
+        # Validate overrides if provided
+        if overrides:
+            validator = OverrideValidator()
+            for override in overrides:
+                if not validator.validate(override):
+                    # Skip invalid overrides but log them
+                    unscheduled.append(
+                        (None, f"Invalid override rejected: {override.override_type.value} - {validator.get_errors()}")
+                    )
+                    overrides = [o for o in overrides if o != override]
         
         # Filter disposed cases
         active_cases = [c for c in cases if c.status != CaseStatus.DISPOSED]
@@ -141,10 +167,10 @@ class SchedulingAlgorithm:
         # CHECKPOINT 4: Prioritize using policy
         prioritized = self.policy.prioritize(eligible_cases, current_date)
         
-        # CHECKPOINT 5: Apply manual overrides (add/remove/reorder)
+        # CHECKPOINT 5: Apply manual overrides (add/remove/reorder/priority)
         if overrides:
             prioritized = self._apply_manual_overrides(
-                prioritized, overrides, applied_overrides, unscheduled
+                prioritized, overrides, applied_overrides, unscheduled, active_cases
             )
         
         # CHECKPOINT 6: Allocate to courtrooms
@@ -170,17 +196,18 @@ class SchedulingAlgorithm:
                 )
                 explanations[case.case_id] = explanation
         
-        # Generate explanations for sample of unscheduled cases (top 10)
-        for case, reason in unscheduled[:10]:
-            explanation = self.explainer.explain_scheduling_decision(
-                case=case,
-                current_date=current_date,
-                scheduled=False,
-                ripeness_status=case.ripeness_status,
-                capacity_full=("Capacity" in reason),
-                below_threshold=False
-            )
-            explanations[case.case_id] = explanation
+        # Generate explanations for sample of unscheduled cases
+        for case, reason in unscheduled[:max_explanations_unscheduled]:
+            if case is not None:  # Skip invalid override entries
+                explanation = self.explainer.explain_scheduling_decision(
+                    case=case,
+                    current_date=current_date,
+                    scheduled=False,
+                    ripeness_status=case.ripeness_status,
+                    capacity_full=("Capacity" in reason),
+                    below_threshold=False
+                )
+                explanations[case.case_id] = explanation
         
         return SchedulingResult(
             scheduled_cases=scheduled_allocation,
@@ -283,10 +310,22 @@ class SchedulingAlgorithm:
         prioritized: List[Case],
         overrides: List[Override],
         applied_overrides: List[Override],
-        unscheduled: List[Tuple[Case, str]]
+        unscheduled: List[Tuple[Case, str]],
+        all_cases: List[Case]
     ) -> List[Case]:
-        """Apply manual overrides (REMOVE_CASE, REORDER)."""
+        """Apply manual overrides (ADD_CASE, REMOVE_CASE, PRIORITY, REORDER)."""
         result = prioritized.copy()
+        
+        # Apply ADD_CASE overrides (insert at high priority)
+        add_overrides = [o for o in overrides if o.override_type == OverrideType.ADD_CASE]
+        for override in add_overrides:
+            # Find case in full case list
+            case_to_add = next((c for c in all_cases if c.case_id == override.case_id), None)
+            if case_to_add and case_to_add not in result:
+                # Insert at position 0 (highest priority) or specified position
+                insert_pos = override.new_position if override.new_position is not None else 0
+                result.insert(min(insert_pos, len(result)), case_to_add)
+                applied_overrides.append(override)
         
         # Apply REMOVE_CASE overrides
         remove_overrides = [o for o in overrides if o.override_type == OverrideType.REMOVE_CASE]
@@ -297,7 +336,23 @@ class SchedulingAlgorithm:
                 applied_overrides.append(override)
                 unscheduled.append((removed[0], f"Judge override: {override.reason}"))
         
-        # Apply REORDER overrides
+        # Apply PRIORITY overrides (adjust priority scores)
+        priority_overrides = [o for o in overrides if o.override_type == OverrideType.PRIORITY]
+        for override in priority_overrides:
+            case_to_adjust = next((c for c in result if c.case_id == override.case_id), None)
+            if case_to_adjust and override.new_priority is not None:
+                # Store original priority for reference
+                original_priority = case_to_adjust.get_priority_score()
+                # Temporarily adjust case to force re-sorting
+                # Note: This is a simplification - in production might need case.set_priority_override()
+                case_to_adjust._priority_override = override.new_priority
+                applied_overrides.append(override)
+        
+        # Re-sort if priority overrides were applied
+        if priority_overrides:
+            result.sort(key=lambda c: getattr(c, '_priority_override', c.get_priority_score()), reverse=True)
+        
+        # Apply REORDER overrides (explicit positioning)
         reorder_overrides = [o for o in overrides if o.override_type == OverrideType.REORDER]
         for override in reorder_overrides:
             if override.case_id and override.new_position is not None:
