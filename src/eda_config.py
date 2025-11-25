@@ -9,8 +9,7 @@ from pathlib import Path
 # Paths and versioning
 # -------------------------------------------------------------------
 DATA_DIR = Path("Data")
-CASES_FILE = DATA_DIR / "ISDMHack_Cases_WPfinal.csv"
-HEAR_FILE = DATA_DIR / "ISDMHack_Hear.csv"
+DUCKDB_FILE = DATA_DIR / "court_data.duckdb"
 
 REPORTS_DIR = Path("reports")
 FIGURES_DIR = REPORTS_DIR / "figures"

@@ -29,3 +29,4 @@ Data/test_verification/
 # Keep essential data
 !Data/README.md
 !pyproject.toml
+!Data/court_data.duckdb

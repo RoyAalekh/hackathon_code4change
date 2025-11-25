@@ -11,10 +11,10 @@ Responsibilities:
 from datetime import timedelta
 
 import polars as pl
+import duckdb
 from src.eda_config import (
     CASES_CLEAN_PARQUET,
-    CASES_FILE,
-    HEAR_FILE,
+    DUCKDB_FILE,
     HEARINGS_CLEAN_PARQUET,
     NULL_TOKENS,
     RUN_TS,
@@ -56,19 +56,22 @@ def _null_summary(df: pl.DataFrame, name: str) -> None:
 # Main logic
 # -------------------------------------------------------------------
 def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
-    print("Loading raw data with Polars...")
-    cases = pl.read_csv(
-        CASES_FILE,
-        try_parse_dates=True,
-        null_values=NULL_TOKENS,
-        infer_schema_length=100_000,
-    )
-    hearings = pl.read_csv(
-        HEAR_FILE,
-        try_parse_dates=True,
-        null_values=NULL_TOKENS,
-        infer_schema_length=100_000,
-    )
+    print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
+    
+    if not DUCKDB_FILE.exists():
+        raise FileNotFoundError(f"DuckDB file not found: {DUCKDB_FILE}")
+    
+    # Connect to DuckDB and load data
+    conn = duckdb.connect(str(DUCKDB_FILE))
+    
+    # Load cases as Polars DataFrame
+    cases = pl.from_pandas(conn.execute("SELECT * FROM cases").df())
+    
+    # Load hearings as Polars DataFrame
+    hearings = pl.from_pandas(conn.execute("SELECT * FROM hearings").df())
+    
+    conn.close()
+    
     print(f"Cases shape: {cases.shape}")
     print(f"Hearings shape: {hearings.shape}")
     return cases, hearings
