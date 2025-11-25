@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+uv.lock
+.env
+*.idea
+.vscode/
+__pylintrc__
+.pdf
+.html
+.docx
+
+# Large data files and simulation outputs
+Data/comprehensive_sweep*/
+Data/sim_runs/
+Data/config_test/
+Data/test_verification/
+*.csv
+*.png
+*.json
+
+# Keep essential data
+!Data/README.md
+!pyproject.toml

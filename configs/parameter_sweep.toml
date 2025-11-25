@@ -1,0 +1,53 @@
+# Parameter Sweep Configuration
+# Comprehensive policy comparison across varied scenarios
+
+[sweep]
+simulation_days = 500
+policies = ["fifo", "age", "readiness"]
+
+# Dataset Variations
+[[datasets]]
+name = "baseline"
+description = "Default balanced distribution (existing)"
+cases = 10000
+stage_mix_auto = true  # Use stationary distribution from EDA
+urgent_percentage = 0.10
+seed = 42
+
+[[datasets]]
+name = "admission_heavy"
+description = "70% cases in early stages (admission backlog scenario)"
+cases = 10000
+stage_mix = { "ADMISSION" = 0.70, "ARGUMENTS" = 0.15, "ORDERS / JUDGMENT" = 0.10, "EVIDENCE" = 0.05 }
+urgent_percentage = 0.10
+seed = 123
+
+[[datasets]]
+name = "advanced_heavy"
+description = "70% cases in advanced stages (efficient court scenario)"
+cases = 10000
+stage_mix = { "ADMISSION" = 0.10, "ARGUMENTS" = 0.40, "ORDERS / JUDGMENT" = 0.40, "EVIDENCE" = 0.10 }
+urgent_percentage = 0.10
+seed = 456
+
+[[datasets]]
+name = "high_urgency"
+description = "20% urgent cases (medical/custodial heavy)"
+cases = 10000
+stage_mix_auto = true
+urgent_percentage = 0.20
+seed = 789
+
+[[datasets]]
+name = "large_backlog"
+description = "15k cases, balanced distribution (capacity stress test)"
+cases = 15000
+stage_mix_auto = true
+urgent_percentage = 0.10
+seed = 999
+
+# Expected Outcomes Matrix (for validation)
+# Policy performance should vary by scenario:
+# - FIFO: Best fairness, consistent across scenarios
+# - Age: Similar to FIFO, slight edge on backlog
+# - Readiness: Best efficiency, especially in advanced_heavy and high_urgency
