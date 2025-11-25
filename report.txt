@@ -3,54 +3,54 @@ SIMULATION REPORT
 ================================================================================
 
 Configuration:
-  Cases: 10000
+  Cases: 3000
   Days simulated: 60
   Policy: readiness
-  Horizon end: 2024-03-21
+  Horizon end: 2024-06-20
 
 Hearing Metrics:
-  Total hearings: 42,193
-  Heard: 26,245 (62.2%)
-  Adjourned: 15,948 (37.8%)
+  Total hearings: 16,137
+  Heard: 9,981 (61.9%)
+  Adjourned: 6,156 (38.1%)
 
 Disposal Metrics:
-  Cases disposed: 4,401
-  Disposal rate: 44.0%
-  Gini coefficient: 0.255
+  Cases disposed: 708
+  Disposal rate: 23.6%
+  Gini coefficient: 0.195
 
 Disposal Rates by Case Type:
-  CA  : 1147/1949 ( 58.9%)
-  CCC :  679/1147 ( 59.2%)
-  CMP :  139/ 275 ( 50.5%)
-  CP  :  526/ 963 ( 54.6%)
-  CRP : 1117/2062 ( 54.2%)
-  RFA :  346/1680 ( 20.6%)
-  RSA :  447/1924 ( 23.2%)
+  CA  :  159/ 587 ( 27.1%)
+  CCC :  133/ 334 ( 39.8%)
+  CMP :   14/  86 ( 16.3%)
+  CP  :  105/ 294 ( 35.7%)
+  CRP :  142/ 612 ( 23.2%)
+  RFA :   77/ 519 ( 14.8%)
+  RSA :   78/ 568 ( 13.7%)
 
 Efficiency Metrics:
-  Court utilization: 93.1%
-  Avg hearings/day: 703.2
+  Court utilization: 35.6%
+  Avg hearings/day: 268.9
 
 Ripeness Impact:
   Transitions: 0
-  Cases filtered (unripe): 14,040
-  Filter rate: 25.0%
+  Cases filtered (unripe): 3,360
+  Filter rate: 17.2%
 
 Final Ripeness Distribution:
-  RIPE: 5365 (95.8%)
-  UNRIPE_DEPENDENT: 59 (1.1%)
-  UNRIPE_SUMMONS: 175 (3.1%)
+  RIPE: 2236 (97.6%)
+  UNRIPE_DEPENDENT: 19 (0.8%)
+  UNRIPE_SUMMONS: 37 (1.6%)
 
 Courtroom Allocation:
   Strategy: load_balanced
-  Load balance fairness (Gini): 0.000
-  Avg daily load: 140.6 cases
-  Allocation changes: 25,935
+  Load balance fairness (Gini): 0.002
+  Avg daily load: 53.8 cases
+  Allocation changes: 10,527
   Capacity rejections: 0
 
   Courtroom-wise totals:
-    Courtroom 1: 8,449 cases (140.8/day)
-    Courtroom 2: 8,444 cases (140.7/day)
-    Courtroom 3: 8,438 cases (140.6/day)
-    Courtroom 4: 8,433 cases (140.6/day)
-    Courtroom 5: 8,429 cases (140.5/day)
+    Courtroom 1: 3,244 cases (54.1/day)
+    Courtroom 2: 3,233 cases (53.9/day)
+    Courtroom 3: 3,227 cases (53.8/day)
+    Courtroom 4: 3,221 cases (53.7/day)
+    Courtroom 5: 3,212 cases (53.5/day)

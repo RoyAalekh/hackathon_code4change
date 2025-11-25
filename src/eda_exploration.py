@@ -59,7 +59,7 @@ def run_exploration() -> None:
     )
     fig1.update_layout(showlegend=False, xaxis_title="Case Type", yaxis_title="Number of Cases")
     f1 = "1_case_type_distribution.html"
-    fig1.write_html(FIGURES_DIR / f1)
+    fig1.write_html(str(FIGURES_DIR / f1))
     copy_to_versioned(f1)
 
     # --------------------------------------------------
@@ -73,7 +73,7 @@ def run_exploration() -> None:
         fig2.update_traces(line_color="royalblue")
         fig2.update_layout(xaxis=dict(rangeslider=dict(visible=True)))
         f2 = "2_cases_filed_by_year.html"
-        fig2.write_html(FIGURES_DIR / f2)
+        fig2.write_html(str(FIGURES_DIR / f2))
         copy_to_versioned(f2)
 
     # --------------------------------------------------
@@ -89,7 +89,7 @@ def run_exploration() -> None:
         )
         fig3.update_layout(xaxis_title="Days", yaxis_title="Cases")
         f3 = "3_disposal_time_distribution.html"
-        fig3.write_html(FIGURES_DIR / f3)
+        fig3.write_html(str(FIGURES_DIR / f3))
         copy_to_versioned(f3)
 
     # --------------------------------------------------
@@ -106,7 +106,7 @@ def run_exploration() -> None:
         )
         fig4.update_traces(marker=dict(size=6, opacity=0.7))
         f4 = "4_hearings_vs_disposal.html"
-        fig4.write_html(FIGURES_DIR / f4)
+        fig4.write_html(str(FIGURES_DIR / f4))
         copy_to_versioned(f4)
 
     # --------------------------------------------------
@@ -121,7 +121,7 @@ def run_exploration() -> None:
     )
     fig5.update_layout(showlegend=False)
     f5 = "5_box_disposal_by_type.html"
-    fig5.write_html(FIGURES_DIR / f5)
+    fig5.write_html(str(FIGURES_DIR / f5))
     copy_to_versioned(f5)
 
     # --------------------------------------------------
@@ -139,7 +139,7 @@ def run_exploration() -> None:
         )
         fig6.update_layout(showlegend=False, xaxis_title="Stage", yaxis_title="Count")
         f6 = "6_stage_frequency.html"
-        fig6.write_html(FIGURES_DIR / f6)
+        fig6.write_html(str(FIGURES_DIR / f6))
         copy_to_versioned(f6)
 
     # --------------------------------------------------
@@ -154,7 +154,7 @@ def run_exploration() -> None:
             title="Median Hearing Gap by Case Type",
         )
         fg = "9_gap_median_by_type.html"
-        fig_gap.write_html(FIGURES_DIR / fg)
+        fig_gap.write_html(str(FIGURES_DIR / fg))
         copy_to_versioned(fg)
 
     # --------------------------------------------------
@@ -284,7 +284,7 @@ def run_exploration() -> None:
             )
             sankey.update_layout(title_text="Stage Transition Sankey (Ordered)")
             f10 = "10_stage_transition_sankey.html"
-            sankey.write_html(FIGURES_DIR / f10)
+            sankey.write_html(str(FIGURES_DIR / f10))
             copy_to_versioned(f10)
         except Exception as e:
             print("Sankey error:", e)
@@ -301,7 +301,7 @@ def run_exploration() -> None:
                 title="Stage Bottleneck Impact (Median Days x Runs)",
             )
             fb = "15_bottleneck_impact.html"
-            fig_b.write_html(FIGURES_DIR / fb)
+            fig_b.write_html(str(FIGURES_DIR / fb))
             copy_to_versioned(fb)
         except Exception as e:
             print("Bottleneck plot error:", e)
@@ -332,7 +332,7 @@ def run_exploration() -> None:
             )
             fig_m.update_layout(yaxis=dict(tickformat=",d"))
             fm = "11_monthly_hearings.html"
-            fig_m.write_html(FIGURES_DIR / fm)
+            fig_m.write_html(str(FIGURES_DIR / fm))
             copy_to_versioned(fm)
         except Exception as e:
             print("Monthly listings error:", e)
@@ -380,7 +380,7 @@ def run_exploration() -> None:
                 yaxis=dict(tickformat=",d"),
             )
             fw = "11b_monthly_waterfall.html"
-            fig_w.write_html(FIGURES_DIR / fw)
+            fig_w.write_html(str(FIGURES_DIR / fw))
             copy_to_versioned(fw)
 
             ml_pd_out = ml_pd.copy()
@@ -420,7 +420,7 @@ def run_exploration() -> None:
                 xaxis={"categoryorder": "total descending"}, yaxis=dict(tickformat=",d")
             )
             fj = "12_judge_day_load.html"
-            fig_j.write_html(FIGURES_DIR / fj)
+            fig_j.write_html(str(FIGURES_DIR / fj))
             copy_to_versioned(fj)
         except Exception as e:
             print("Judge workload error:", e)
@@ -447,7 +447,7 @@ def run_exploration() -> None:
                 xaxis={"categoryorder": "total descending"}, yaxis=dict(tickformat=",d")
             )
             fc = "12b_court_day_load.html"
-            fig_court.write_html(FIGURES_DIR / fc)
+            fig_court.write_html(str(FIGURES_DIR / fc))
             copy_to_versioned(fc)
         except Exception as e:
             print("Court workload error:", e)
@@ -499,7 +499,7 @@ def run_exploration() -> None:
                 barmode="stack",
             )
             ft = "14_purpose_tag_shares.html"
-            fig_t.write_html(FIGURES_DIR / ft)
+            fig_t.write_html(str(FIGURES_DIR / ft))
             copy_to_versioned(ft)
         except Exception as e:
             print("Purpose shares error:", e)
