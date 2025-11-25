@@ -1,0 +1,56 @@
+================================================================================
+SIMULATION REPORT
+================================================================================
+
+Configuration:
+  Cases: 10000
+  Days simulated: 90
+  Policy: readiness
+  Horizon end: 2024-10-31
+
+Hearing Metrics:
+  Total hearings: 58,262
+  Heard: 36,595 (62.8%)
+  Adjourned: 21,667 (37.2%)
+
+Disposal Metrics:
+  Cases disposed: 5,195
+  Disposal rate: 51.9%
+  Gini coefficient: 0.243
+
+Disposal Rates by Case Type:
+  CA  : 1358/1952 ( 69.6%)
+  CCC :  796/1132 ( 70.3%)
+  CMP :  172/ 281 ( 61.2%)
+  CP  :  662/ 960 ( 69.0%)
+  CRP : 1365/2061 ( 66.2%)
+  RFA :  363/1676 ( 21.7%)
+  RSA :  479/1938 ( 24.7%)
+
+Efficiency Metrics:
+  Court utilization: 85.7%
+  Avg hearings/day: 647.4
+
+Ripeness Impact:
+  Transitions: 0
+  Cases filtered (unripe): 20,340
+  Filter rate: 25.9%
+
+Final Ripeness Distribution:
+  RIPE: 4579 (95.3%)
+  UNRIPE_DEPENDENT: 58 (1.2%)
+  UNRIPE_SUMMONS: 168 (3.5%)
+
+Courtroom Allocation:
+  Strategy: load_balanced
+  Load balance fairness (Gini): 0.001
+  Avg daily load: 129.5 cases
+  Allocation changes: 38,756
+  Capacity rejections: 0
+
+  Courtroom-wise totals:
+    Courtroom 1: 11,671 cases (129.7/day)
+    Courtroom 2: 11,666 cases (129.6/day)
+    Courtroom 3: 11,654 cases (129.5/day)
+    Courtroom 4: 11,640 cases (129.3/day)
+    Courtroom 5: 11,631 cases (129.2/day)
