@@ -4,13 +4,14 @@ Data-driven court scheduling system with ripeness classification, multi-courtroo
 
 ## Project Overview
 
-This project delivers a **production-ready** court scheduling system for the Code4Change hackathon, featuring:
+This project delivers a **comprehensive** court scheduling system featuring:
 - **EDA & Parameter Extraction**: Analysis of 739K+ hearings to derive scheduling parameters
-- **Ripeness Classification**: Data-driven bottleneck detection (40.8% cases filtered for efficiency)
-- **Simulation Engine**: 2-year court operations simulation with validated realistic outcomes
-- **Perfect Load Balancing**: Gini coefficient 0.002 across 5 courtrooms
-- **Judge Override System**: Complete API for judicial control and approval workflows
-- **Cause List Generation**: Production-ready CSV export system
+- **Ripeness Classification**: Data-driven bottleneck detection (filtering unripe cases)
+- **Simulation Engine**: Multi-year court operations simulation with realistic outcomes
+- **Multiple Scheduling Policies**: FIFO, Age-based, Readiness-based, and RL-based
+- **Reinforcement Learning**: Tabular Q-learning achieving performance parity with heuristics
+- **Load Balancing**: Dynamic courtroom allocation with low inequality
+- **Configurable Pipeline**: Modular training and evaluation framework
 
 ## Key Achievements
 
@@ -44,13 +45,20 @@ This project delivers a **production-ready** court scheduling system for the Cod
 - **Impact**: Prevents premature scheduling of unready cases
 
 ### 3. Simulation Engine (`scheduler/simulation/`)
-- **Discrete Event Simulation**: 384 working days (2 years)
-- **Stochastic Modeling**: Adjournments (31.8% rate), disposals (79.5% rate)
+- **Discrete Event Simulation**: Configurable horizon (30-384+ days)
+- **Stochastic Modeling**: Realistic adjournments and disposal rates
 - **Multi-Courtroom**: 5 courtrooms with dynamic load-balanced allocation
-- **Policies**: FIFO, Age-based, Readiness-based scheduling
-- **Fairness**: Gini 0.002 courtroom load balance (near-perfect equality)
+- **Policies**: FIFO, Age-based, Readiness-based, RL-based scheduling
+- **Performance Comparison**: Direct policy evaluation framework
 
-### 4. Case Management (`scheduler/core/`)
+### 4. Reinforcement Learning (`rl/`)
+- **Tabular Q-Learning**: 6D state space for case prioritization
+- **Hybrid Architecture**: RL prioritization with rule-based constraints
+- **Training Pipeline**: Configurable episodes and learning parameters
+- **Performance**: 52.1% disposal rate (parity with 51.9% baseline)
+- **Configuration Management**: JSON-based training profiles and parameter overrides
+
+### 5. Case Management (`scheduler/core/`)
 - Case entity with lifecycle tracking
 - Ripeness status and bottleneck reasons
 - No-case-left-behind tracking
@@ -67,26 +75,68 @@ This project delivers a **production-ready** court scheduling system for the Cod
 
 ## Quick Start
 
-### Using the CLI (Recommended)
-
-The system provides a unified CLI for all operations:
+### Hackathon Submission (Recommended)
 
 ```bash
-# See all available commands
-court-scheduler --help
-
-# Run EDA pipeline
-court-scheduler eda
-
-# Generate test cases
-court-scheduler generate --cases 10000 --output data/generated/cases.csv
-
-# Run simulation
-court-scheduler simulate --days 384 --start 2024-01-01 --log-dir data/sim_runs/test_run
-
-# Run full workflow (EDA -> Generate -> Simulate)
-court-scheduler workflow --cases 10000 --days 384
+# Interactive 2-year RL simulation with cause list generation
+uv run python court_scheduler_rl.py interactive
 ```
+
+This runs the complete pipeline:
+1. EDA & parameter extraction
+2. Generate 50,000 training cases
+3. Train RL agent (100 episodes)
+4. Run 2-year simulation (730 days)
+5. Generate daily cause lists
+6. Performance analysis
+7. Executive summary generation
+
+**Quick Demo** (5-10 minutes):
+```bash
+uv run python court_scheduler_rl.py quick
+```
+
+See [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md) for detailed instructions.
+
+### Core Operations (Advanced)
+
+<details>
+<summary>Click for individual component execution</summary>
+
+#### 1. Generate Training Data
+```bash
+# Generate large training dataset
+uv run python scripts/generate_cases.py --start 2023-01-01 --end 2024-06-30 --n 10000 --stage-mix auto --out data/generated/large_cases.csv
+```
+
+#### 2. Run EDA Pipeline  
+```bash
+# Extract parameters from historical data
+uv run python src/run_eda.py
+```
+
+#### 3. Train RL Agent
+```bash
+# Fast training (20 episodes)
+uv run python train_rl_agent.py --config configs/rl_training_fast.json
+
+# Intensive training (100 episodes)
+uv run python train_rl_agent.py --config configs/rl_training_intensive.json
+
+# Custom parameters
+uv run python train_rl_agent.py --episodes 50 --learning-rate 0.15 --model-name "custom_agent.pkl"
+```
+
+#### 4. Run Simulations
+```bash
+# Compare all policies
+uv run python scripts/compare_policies.py --cases-csv data/generated/large_cases.csv --days 90 --policies readiness rl
+
+# Single policy simulation
+uv run python scripts/simulate.py --cases-csv data/generated/cases.csv --policy rl --days 60
+```
+
+</details>
 
 ### Legacy Methods (Still Supported)
 
@@ -197,7 +247,17 @@ uv run python scripts/simulate.py --days 60
 
 ## Documentation
 
+### Hackathon & Presentation
+- `HACKATHON_SUBMISSION.md` - Complete hackathon submission guide
+- `court_scheduler_rl.py` - Interactive CLI for full pipeline
+
+### Technical Documentation
 - `COMPREHENSIVE_ANALYSIS.md` - EDA findings and insights
 - `RIPENESS_VALIDATION.md` - Ripeness system validation results
+- `PIPELINE.md` - Complete development and deployment pipeline
+- `rl/README.md` - Reinforcement learning module documentation
+
+### Outputs & Configuration
 - `reports/figures/` - Parameter visualizations
 - `data/sim_runs/` - Simulation outputs and metrics
+- `configs/` - RL training configurations and profiles

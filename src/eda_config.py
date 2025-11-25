@@ -10,6 +10,8 @@ from pathlib import Path
 # -------------------------------------------------------------------
 DATA_DIR = Path("Data")
 DUCKDB_FILE = DATA_DIR / "court_data.duckdb"
+CASES_FILE = DATA_DIR / "ISDMHack_Cases_WPfinal.csv"
+HEAR_FILE = DATA_DIR / "ISDMHack_Hear.csv"
 
 REPORTS_DIR = Path("reports")
 FIGURES_DIR = REPORTS_DIR / "figures"

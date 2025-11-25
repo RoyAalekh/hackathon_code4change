@@ -56,22 +56,33 @@ def _null_summary(df: pl.DataFrame, name: str) -> None:
 # Main logic
 # -------------------------------------------------------------------
 def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
-    print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
-    
-    if not DUCKDB_FILE.exists():
-        raise FileNotFoundError(f"DuckDB file not found: {DUCKDB_FILE}")
-    
-    # Connect to DuckDB and load data
-    conn = duckdb.connect(str(DUCKDB_FILE))
-    
-    # Load cases as Polars DataFrame
-    cases = pl.from_pandas(conn.execute("SELECT * FROM cases").df())
-    
-    # Load hearings as Polars DataFrame
-    hearings = pl.from_pandas(conn.execute("SELECT * FROM hearings").df())
-    
-    conn.close()
-    
+    from src.eda_config import DUCKDB_FILE, CASES_FILE, HEAR_FILE
+    try:
+        import duckdb
+        if DUCKDB_FILE.exists():
+            print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
+            conn = duckdb.connect(str(DUCKDB_FILE))
+            cases = pl.from_pandas(conn.execute("SELECT * FROM cases").df())
+            hearings = pl.from_pandas(conn.execute("SELECT * FROM hearings").df())
+            conn.close()
+            print(f"Cases shape: {cases.shape}")
+            print(f"Hearings shape: {hearings.shape}")
+            return cases, hearings
+    except Exception as e:
+        print(f"[WARN] DuckDB load failed ({e}), falling back to CSV...")
+    print("Loading raw data from CSVs (fallback)...")
+    cases = pl.read_csv(
+        CASES_FILE,
+        try_parse_dates=True,
+        null_values=NULL_TOKENS,
+        infer_schema_length=100_000,
+    )
+    hearings = pl.read_csv(
+        HEAR_FILE,
+        try_parse_dates=True,
+        null_values=NULL_TOKENS,
+        infer_schema_length=100_000,
+    )
     print(f"Cases shape: {cases.shape}")
     print(f"Hearings shape: {hearings.shape}")
     return cases, hearings
