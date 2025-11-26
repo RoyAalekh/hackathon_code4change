@@ -44,10 +44,32 @@ class CourtSimConfig:
     seed: int = 42
     courtrooms: int = COURTROOMS
     daily_capacity: int = DEFAULT_DAILY_CAPACITY
-    policy: str = "readiness"  # fifo|age|readiness
+    policy: str = "readiness"  # fifo|age|readiness|rl
     duration_percentile: str = "median"  # median|p90
     log_dir: Path | None = None  # if set, write metrics and suggestions
     write_suggestions: bool = False  # if True, write daily suggestion CSVs (slow)
+    rl_agent_path: Path | None = None  # Required if policy="rl"
+    
+    def __post_init__(self):
+        """Validate configuration parameters."""
+        # Validate RL policy requirements
+        if self.policy == "rl":
+            if self.rl_agent_path is None:
+                raise ValueError(
+                    "RL policy requires 'rl_agent_path' parameter. "
+                    "Train an agent first and pass the model file path."
+                )
+            if not isinstance(self.rl_agent_path, Path):
+                self.rl_agent_path = Path(self.rl_agent_path)
+            if not self.rl_agent_path.exists():
+                raise FileNotFoundError(
+                    f"RL agent model not found at {self.rl_agent_path}. "
+                    "Train the agent first or provide correct path."
+                )
+        
+        # Ensure log_dir is Path if provided
+        if self.log_dir is not None and not isinstance(self.log_dir, Path):
+            self.log_dir = Path(self.log_dir)
 
 
 @dataclass
@@ -68,7 +90,15 @@ class CourtSim:
         self.cases = cases
         self.calendar = CourtCalendar()
         self.params = load_parameters()
-        self.policy = get_policy(self.cfg.policy)
+        
+        # Initialize policy with RL agent path if needed
+        policy_kwargs = {}
+        if self.cfg.policy == "rl":
+            if not self.cfg.rl_agent_path:
+                raise ValueError("RL policy requires rl_agent_path in CourtSimConfig")
+            policy_kwargs["agent_path"] = self.cfg.rl_agent_path
+        
+        self.policy = get_policy(self.cfg.policy, **policy_kwargs)
         random.seed(self.cfg.seed)
         # month working-days cache
         self._month_working_cache: Dict[tuple, int] = {}
@@ -82,9 +112,9 @@ class CourtSim:
             self._log_dir = Path("data") / "sim_runs" / run_id
         self._log_dir.mkdir(parents=True, exist_ok=True)
         self._metrics_path = self._log_dir / "metrics.csv"
-        with self._metrics_path.open("w", newline="") as f:
+        with self._metrics_path.open("w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["date", "total_cases", "scheduled", "heard", "adjourned", "disposals", "utilization"]) 
+            w.writerow(["date", "total_cases", "scheduled", "heard", "adjourned", "disposals", "utilization"])
         # events
         self._events_path = self._log_dir / "events.csv"
         self._events = EventWriter(self._events_path)
@@ -407,7 +437,7 @@ class CourtSim:
         # write metrics row
         total_cases = sum(1 for c in self.cases if c.status != CaseStatus.DISPOSED)
         util = (day_total / capacity_today) if capacity_today else 0.0
-        with self._metrics_path.open("a", newline="") as f:
+        with self._metrics_path.open("a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow([current.isoformat(), total_cases, day_total, day_heard, day_total - day_heard, self._disposals, f"{util:.4f}"])
         if sf:
