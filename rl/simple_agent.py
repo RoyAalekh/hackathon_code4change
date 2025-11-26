@@ -18,15 +18,19 @@ from scheduler.core.case import Case
 
 @dataclass
 class CaseState:
-    """6-dimensional state representation for a case."""
+    """Expanded state representation for a case with environment context."""
+
     stage_encoded: int      # 0-7 for different stages
     age_days: float        # normalized 0-1
-    days_since_last: float # normalized 0-1  
+    days_since_last: float # normalized 0-1
     urgency: int           # 0 or 1
     ripe: int              # 0 or 1
     hearing_count: float   # normalized 0-1
-    
-    def to_tuple(self) -> Tuple[int, int, int, int, int, int]:
+    capacity_ratio: float  # normalized 0-1 (remaining capacity for the day)
+    min_gap_days: int      # encoded min gap rule in effect
+    preference_score: float  # normalized 0-1 preference alignment
+
+    def to_tuple(self) -> Tuple[int, int, int, int, int, int, int, int, int]:
         """Convert to tuple for use as dict key."""
         return (
             self.stage_encoded,
@@ -34,7 +38,10 @@ class CaseState:
             min(9, int(self.days_since_last * 20)),  # discretize to 20 bins, cap at 9
             self.urgency,
             self.ripe,
-            min(9, int(self.hearing_count * 20))  # discretize to 20 bins, cap at 9
+            min(9, int(self.hearing_count * 20)),  # discretize to 20 bins, cap at 9
+            min(9, int(self.capacity_ratio * 10)),
+            min(30, self.min_gap_days),
+            min(9, int(self.preference_score * 10))
         )
 
 
@@ -77,7 +84,15 @@ class TabularQAgent:
         self.states_visited = set()
         self.total_updates = 0
         
-    def extract_state(self, case: Case, current_date) -> CaseState:
+    def extract_state(
+        self,
+        case: Case,
+        current_date,
+        *,
+        capacity_ratio: float = 1.0,
+        min_gap_days: int = 7,
+        preference_score: float = 0.0,
+    ) -> CaseState:
         """Extract 6D state representation from a case.
         
         Args:
@@ -118,7 +133,10 @@ class TabularQAgent:
             days_since_last=days_since,
             urgency=urgency,
             ripe=ripe,
-            hearing_count=hearing_count
+            hearing_count=hearing_count,
+            capacity_ratio=max(0.0, min(1.0, capacity_ratio)),
+            min_gap_days=max(0, min_gap_days),
+            preference_score=max(0.0, min(1.0, preference_score))
         )
     
     def get_action(self, state: CaseState, training: bool = False) -> int:
