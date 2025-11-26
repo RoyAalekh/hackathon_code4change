@@ -71,7 +71,7 @@ ax.axhline(y=55, color='red', linestyle='--', alpha=0.5, label='Typical Baseline
 ax.text(3.5, 56, 'Typical Baseline', color='red', fontsize=9, alpha=0.7)
 
 plt.tight_layout()
-plt.savefig(output_dir / "01_disposal_rate_comparison.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "01_disposal_rate_comparison.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '01_disposal_rate_comparison.png'}")
 
 # --- Plot 2: Gini Coefficient (Fairness) Comparison ---
@@ -107,7 +107,7 @@ ax.axhline(y=0.26, color='green', linestyle='--', alpha=0.5)
 ax.text(3.5, 0.265, 'Excellent Fairness (<0.26)', color='green', fontsize=9, alpha=0.7)
 
 plt.tight_layout()
-plt.savefig(output_dir / "02_gini_coefficient_comparison.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "02_gini_coefficient_comparison.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '02_gini_coefficient_comparison.png'}")
 
 # --- Plot 3: Utilization Patterns ---
@@ -143,7 +143,7 @@ ax.axhspan(40, 50, alpha=0.1, color='green', label='Real Karnataka HC Range')
 ax.text(3.5, 45, 'Karnataka HC\nRange (40-50%)', color='green', fontsize=9, alpha=0.7, ha='right')
 
 plt.tight_layout()
-plt.savefig(output_dir / "03_utilization_comparison.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "03_utilization_comparison.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '03_utilization_comparison.png'}")
 
 # --- Plot 4: Long-Term Performance Trend (Readiness Only) ---
@@ -183,7 +183,7 @@ ax.text(300, 72, '+43% improvement', fontsize=11, color='green', fontweight='bol
 fig.legend(loc='upper left', bbox_to_anchor=(0.12, 0.88), fontsize=11)
 
 plt.tight_layout()
-plt.savefig(output_dir / "04_long_term_trend.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "04_long_term_trend.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '04_long_term_trend.png'}")
 
 # --- Plot 5: Coverage Comparison ---
@@ -209,7 +209,7 @@ ax.axhline(y=98, color='green', linestyle='--', linewidth=2, alpha=0.7)
 ax.text(3.5, 98.2, 'Target: 98%', color='green', fontsize=10, fontweight='bold')
 
 plt.tight_layout()
-plt.savefig(output_dir / "05_coverage_comparison.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "05_coverage_comparison.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '05_coverage_comparison.png'}")
 
 # --- Plot 6: Scalability Test (Load vs Performance) ---
@@ -251,7 +251,7 @@ ax2.annotate('BETTER', xy=(2, 0.228), xytext=(1, 0.235),
              fontsize=11, color='green', fontweight='bold')
 
 plt.tight_layout()
-plt.savefig(output_dir / "06_scalability_analysis.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "06_scalability_analysis.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '06_scalability_analysis.png'}")
 
 print("\n" + "="*60)

@@ -34,11 +34,12 @@ class RLTrainingEnvironment:
         self.episode_rewards = []
         
     def reset(self) -> List[Case]:
-        """Reset environment for new training episode."""
-        # Reset all cases to initial state
-        for case in self.cases:
-            case.reset_to_initial_state()
+        """Reset environment for new training episode.
         
+        Note: In practice, train_agent() generates fresh cases per episode,
+        so case state doesn't need resetting. This method just resets
+        environment state (date, rewards).
+        """
         self.current_date = self.start_date
         self.episode_rewards = []
         return self.cases.copy()

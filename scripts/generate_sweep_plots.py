@@ -83,7 +83,7 @@ ax.axhline(y=55, color='red', linestyle='--', alpha=0.5, linewidth=2)
 ax.text(5.5, 56, 'Typical Baseline\n(45-55%)', color='red', fontsize=9, alpha=0.8, ha='right')
 
 plt.tight_layout()
-plt.savefig(output_dir / "01_disposal_rate_all_scenarios.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "01_disposal_rate_all_scenarios.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '01_disposal_rate_all_scenarios.png'}")
 
 # --- Plot 2: Gini Coefficient (Fairness) Comparison ---
@@ -117,7 +117,7 @@ ax.axhline(y=0.26, color='green', linestyle='--', alpha=0.6, linewidth=2)
 ax.text(5.5, 0.265, 'Excellent\nFairness\n(<0.26)', color='green', fontsize=9, alpha=0.8, ha='right')
 
 plt.tight_layout()
-plt.savefig(output_dir / "02_gini_all_scenarios.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "02_gini_all_scenarios.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '02_gini_all_scenarios.png'}")
 
 # --- Plot 3: Performance Delta (Readiness - Best Baseline) ---
@@ -165,7 +165,7 @@ ax2.set_xticklabels([SCENARIO_NAMES[s] for s in scenarios], fontsize=9)
 ax2.grid(axis='y', alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(output_dir / "03_advantage_over_baseline.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "03_advantage_over_baseline.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '03_advantage_over_baseline.png'}")
 
 # --- Plot 4: Robustness Analysis (Our Algorithm Only) ---
@@ -199,7 +199,7 @@ ax.text(5.5, mean_val - 3, f'Std Dev: {std_val:.2f}%\nCV: {(std_val/mean_val)*10
         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
 plt.tight_layout()
-plt.savefig(output_dir / "04_robustness_our_algorithm.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "04_robustness_our_algorithm.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '04_robustness_our_algorithm.png'}")
 
 # --- Plot 5: Statistical Summary ---
@@ -276,7 +276,7 @@ ax4.grid(axis='y', alpha=0.3)
 ax4.set_ylim(0, 7)
 
 plt.tight_layout()
-plt.savefig(output_dir / "05_statistical_summary.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(output_dir / "05_statistical_summary.png"), dpi=300, bbox_inches='tight')
 print(f"✓ Saved: {output_dir / '05_statistical_summary.png'}")
 
 print("\n" + "="*60)
