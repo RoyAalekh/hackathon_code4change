@@ -4,30 +4,107 @@ This module contains all configuration parameters and constants used throughout
 the scheduler implementation.
 """
 
+import argparse
+import subprocess
+import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 REPORTS_DIR = PROJECT_ROOT / "reports" / "figures"
+DEFAULT_PARAMS_DIR = Path(__file__).parent / "defaults"
+RUN_EDA_SCRIPT = PROJECT_ROOT / "src" / "run_eda.py"
 
-# Find the latest versioned output directory
-def get_latest_params_dir() -> Path:
-    """Get the latest versioned parameters directory from EDA outputs."""
+def _discover_latest_report_dir() -> Optional[Path]:
+    """Return the latest versioned report directory if it exists."""
     if not REPORTS_DIR.exists():
-        raise FileNotFoundError(f"Reports directory not found: {REPORTS_DIR}")
-    
+        return None
+
     version_dirs = [d for d in REPORTS_DIR.iterdir() if d.is_dir() and d.name.startswith("v")]
     if not version_dirs:
-        raise FileNotFoundError(f"No versioned directories found in {REPORTS_DIR}")
-    
-    latest_dir = max(version_dirs, key=lambda d: d.stat().st_mtime)
-    params_dir = latest_dir / "params"
-    
-    if not params_dir.exists():
-        params_dir = latest_dir  # Fallback if params/ subdirectory doesn't exist
-    
-    return params_dir
+        return None
+
+    return max(version_dirs, key=lambda d: d.stat().st_mtime)
+
+
+def _try_run_eda() -> None:
+    """Run the EDA pipeline to regenerate parameters."""
+    if not RUN_EDA_SCRIPT.exists():
+        raise FileNotFoundError(
+            f"Unable to regenerate parameters because {RUN_EDA_SCRIPT} is missing. "
+            "Please ensure the EDA pipeline is available."
+        )
+
+    print("No EDA outputs found. Running src/run_eda.py to generate parameters...", file=sys.stderr)
+    result = subprocess.run([sys.executable, str(RUN_EDA_SCRIPT)], check=False)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "Failed to regenerate parameters via src/run_eda.py. "
+            "Check the data dependencies and try again."
+        )
+
+
+# Find the latest versioned output directory
+def get_latest_params_dir(
+    regenerate: bool = False,
+    allow_generate: bool = True,
+    allow_defaults: bool = True,
+    prefer_defaults: bool = False,
+) -> Path:
+    """Get the latest parameters directory from EDA outputs or bundled defaults.
+
+    The lookup strategy is:
+    1) Use the latest versioned directory in reports/figures (unless regenerating).
+    2) Optionally run the EDA pipeline to create parameters when none exist.
+    3) Fallback to bundled defaults when available.
+
+    Args:
+        regenerate: When True, always run the EDA pipeline before resolving params.
+        allow_generate: If True, run EDA automatically when no outputs exist.
+        allow_defaults: If True, fallback to bundled defaults if EDA outputs are missing.
+        prefer_defaults: If True, return bundled defaults immediately when available.
+
+    Returns:
+        Path to a directory containing parameter files.
+
+    Raises:
+        FileNotFoundError: When parameters cannot be located or generated.
+        RuntimeError: When regeneration is attempted but fails.
+    """
+
+    if prefer_defaults and allow_defaults and DEFAULT_PARAMS_DIR.exists():
+        print(
+            "Using bundled baseline parameters from scheduler/data/defaults (preferred).",
+            file=sys.stderr,
+        )
+        return DEFAULT_PARAMS_DIR
+
+    if not regenerate:
+        latest_dir = _discover_latest_report_dir()
+        if latest_dir:
+            params_dir = latest_dir / "params"
+            return params_dir if params_dir.exists() else latest_dir
+
+    if regenerate or (allow_generate and not _discover_latest_report_dir()):
+        _try_run_eda()
+        latest_dir = _discover_latest_report_dir()
+        if latest_dir:
+            params_dir = latest_dir / "params"
+            return params_dir if params_dir.exists() else latest_dir
+
+    if allow_defaults and DEFAULT_PARAMS_DIR.exists():
+        print(
+            "Using bundled baseline parameters from scheduler/data/defaults (EDA outputs not found).",
+            file=sys.stderr,
+        )
+        return DEFAULT_PARAMS_DIR
+
+    missing_reports_msg = (
+        "No parameter directory found. Ensure EDA has been run (python src/run_eda.py) "
+        "or use bundled defaults via get_latest_params_dir(allow_defaults=True)."
+    )
+    raise FileNotFoundError(missing_reports_msg)
 
 # Court operational constants
 WORKING_DAYS_PER_YEAR = 192  # From Karnataka High Court calendar
@@ -120,3 +197,37 @@ RANDOM_SEED = 42
 # Logging configuration
 LOG_LEVEL = "INFO"
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Resolve the scheduler parameter directory, optionally regenerating via the EDA pipeline."
+        )
+    )
+    parser.add_argument(
+        "--regenerate",
+        action="store_true",
+        help="Run src/run_eda.py before resolving parameters.",
+    )
+    parser.add_argument(
+        "--use-defaults",
+        action="store_true",
+        help="Force use of bundled defaults instead of scanning reports/figures.",
+    )
+    return parser.parse_args()
+
+
+def _main() -> None:
+    args = _parse_args()
+    params_dir = get_latest_params_dir(
+        regenerate=args.regenerate,
+        allow_generate=not args.use_defaults,
+        allow_defaults=True,
+        prefer_defaults=args.use_defaults,
+    )
+    print(params_dir)
+
+
+if __name__ == "__main__":
+    _main()
