@@ -37,6 +37,7 @@ class SchedulingResult:
         scheduled_cases: Mapping of courtroom_id to list of scheduled cases
         explanations: Decision explanations for each case (scheduled + sample unscheduled)
         applied_overrides: List of overrides that were successfully applied
+        override_rejections: Structured records for rejected overrides
         unscheduled_cases: Cases not scheduled with reasons (e.g., unripe, capacity full)
         ripeness_filtered: Count of cases filtered due to unripe status
         capacity_limited: Count of cases that didn't fit due to courtroom capacity
@@ -47,11 +48,12 @@ class SchedulingResult:
     
     # Core output
     scheduled_cases: Dict[int, List[Case]]
-    
+
     # Transparency
     explanations: Dict[str, SchedulingExplanation]
     applied_overrides: List[Override]
-    
+    override_rejections: List[Dict[str, str]]
+
     # Diagnostics
     unscheduled_cases: List[Tuple[Case, str]]
     ripeness_filtered: int
@@ -132,18 +134,31 @@ class SchedulingAlgorithm:
         unscheduled: List[Tuple[Case, str]] = []
         applied_overrides: List[Override] = []
         explanations: Dict[str, SchedulingExplanation] = {}
-        
+        override_rejections: List[Dict[str, str]] = []
+        validated_overrides: List[Override] = []
+
         # Validate overrides if provided
         if overrides:
             validator = OverrideValidator()
             for override in overrides:
-                if not validator.validate(override):
-                    # Skip invalid overrides but log them
+                if validator.validate(override):
+                    validated_overrides.append(override)
+                else:
+                    errors = validator.get_errors()
+                    rejection_reason = "; ".join(errors) if errors else "Validation failed"
+                    override_rejections.append({
+                        "judge": override.judge_id,
+                        "context": override.override_type.value,
+                        "reason": rejection_reason
+                    })
                     unscheduled.append(
-                        (None, f"Invalid override rejected: {override.override_type.value} - {validator.get_errors()}")
+                        (
+                            None,
+                            f"Invalid override rejected (judge {override.judge_id}): "
+                            f"{override.override_type.value} - {rejection_reason}"
+                        )
                     )
-                    overrides = [o for o in overrides if o != override]
-        
+
         # Filter disposed cases
         active_cases = [c for c in cases if c.status != CaseStatus.DISPOSED]
         
@@ -154,7 +169,7 @@ class SchedulingAlgorithm:
         
         # CHECKPOINT 1: Ripeness filtering with override support
         ripe_cases, ripeness_filtered = self._filter_by_ripeness(
-            active_cases, current_date, overrides, applied_overrides
+            active_cases, current_date, validated_overrides, applied_overrides
         )
         
         # CHECKPOINT 2: Eligibility check (min gap requirement)
@@ -168,9 +183,9 @@ class SchedulingAlgorithm:
         prioritized = self.policy.prioritize(eligible_cases, current_date)
         
         # CHECKPOINT 5: Apply manual overrides (add/remove/reorder/priority)
-        if overrides:
+        if validated_overrides:
             prioritized = self._apply_manual_overrides(
-                prioritized, overrides, applied_overrides, unscheduled, active_cases
+                prioritized, validated_overrides, applied_overrides, unscheduled, active_cases
             )
         
         # CHECKPOINT 6: Allocate to courtrooms
@@ -208,11 +223,14 @@ class SchedulingAlgorithm:
                     below_threshold=False
                 )
                 explanations[case.case_id] = explanation
-        
+
+        self._clear_temporary_case_flags(active_cases)
+
         return SchedulingResult(
             scheduled_cases=scheduled_allocation,
             explanations=explanations,
             applied_overrides=applied_overrides,
+            override_rejections=override_rejections,
             unscheduled_cases=unscheduled,
             ripeness_filtered=ripeness_filtered,
             capacity_limited=capacity_limited,
@@ -400,5 +418,13 @@ class SchedulingAlgorithm:
             if case.case_id in case_to_courtroom:
                 courtroom_id = case_to_courtroom[case.case_id]
                 allocation[courtroom_id].append(case)
-        
+
         return allocation, capacity_limited
+
+    @staticmethod
+    def _clear_temporary_case_flags(cases: List[Case]) -> None:
+        """Remove temporary scheduling flags to keep case objects clean between runs."""
+
+        for case in cases:
+            if hasattr(case, "_priority_override"):
+                delattr(case, "_priority_override")
