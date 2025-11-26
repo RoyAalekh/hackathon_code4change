@@ -97,13 +97,21 @@ class InteractivePipeline:
         console.print("\n[bold cyan]Step 1/7: EDA & Parameter Extraction[/bold cyan]")
         
         # Check if EDA was run recently
+        from src import eda_config
+
         param_dir = Path("reports/figures").glob("v0.4.0_*/params")
-        recent_params = any(p.exists() and 
+        recent_params = any(p.exists() and
                           (datetime.now() - datetime.fromtimestamp(p.stat().st_mtime)).days < 1
                           for p in param_dir)
-        
+
         if recent_params and not Confirm.ask("EDA parameters found. Regenerate?", default=False):
             console.print("  [green]OK[/green] Using existing EDA parameters")
+            self.output.record_eda_metadata(
+                version=eda_config.VERSION,
+                used_cached=True,
+                params_path=self.output.eda_params,
+                figures_path=self.output.eda_figures,
+            )
             return
             
         with Progress(
@@ -127,10 +135,16 @@ class InteractivePipeline:
             run_load_and_clean()
             run_exploration()
             run_parameter_export()
-            
+
             progress.update(task, completed=True)
-        
+
         console.print("  [green]OK[/green] EDA pipeline complete")
+        self.output.record_eda_metadata(
+            version=eda_config.VERSION,
+            used_cached=False,
+            params_path=self.output.eda_params,
+            figures_path=self.output.eda_figures,
+        )
     
     def _step_2_data_generation(self):
         """Step 2: Generate Training Data"""
@@ -169,7 +183,10 @@ class InteractivePipeline:
         console.print(f"  Episodes: {self.config.rl_training.episodes}, Learning Rate: {self.config.rl_training.learning_rate}")
         
         model_file = self.output.trained_model_file
-        
+
+        def _safe_mean(values: List[float]) -> float:
+            return sum(values) / len(values) if values else 0.0
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -201,12 +218,63 @@ class InteractivePipeline:
                 episode_length=rl_cfg.episode_length_days,
                 verbose=False  # Disable internal printing
             )
-            
+
             progress.update(training_task, completed=rl_cfg.episodes)
-            
+
             # Save trained agent
             agent.save(model_file)
-            
+
+            # Persist training stats for downstream consumers
+            self.output.save_training_stats(training_stats)
+
+            # Run a lightweight evaluation sweep for summary metrics
+            evaluation_stats = None
+            try:
+                from rl.training import evaluate_agent
+                from scheduler.data.case_generator import CaseGenerator
+
+                eval_gen = CaseGenerator(
+                    start=date.today(),
+                    end=date.today() + timedelta(days=60),
+                    seed=self.config.seed + 99,
+                )
+                eval_cases = eval_gen.generate(min(rl_cfg.cases_per_episode, 500), stage_mix_auto=True)
+                evaluation_stats = evaluate_agent(
+                    agent=agent,
+                    test_cases=eval_cases,
+                    episodes=5,
+                    episode_length=rl_cfg.episode_length_days,
+                )
+                self.output.save_evaluation_stats(evaluation_stats)
+            except Exception as eval_err:
+                console.print(f"  [yellow]WARNING[/yellow] Evaluation skipped: {eval_err}")
+
+            training_summary = {
+                "episodes": rl_cfg.episodes,
+                "cases_per_episode": rl_cfg.cases_per_episode,
+                "episode_length_days": rl_cfg.episode_length_days,
+                "learning_rate": rl_cfg.learning_rate,
+                "epsilon": {
+                    "initial": rl_cfg.initial_epsilon,
+                    "final": agent.epsilon,
+                },
+                "reward": {
+                    "mean": _safe_mean(training_stats.get("total_rewards", [])),
+                    "final": training_stats.get("total_rewards", [0])[-1] if training_stats.get("total_rewards") else 0.0,
+                },
+                "disposal_rate": {
+                    "mean": _safe_mean(training_stats.get("disposal_rates", [])),
+                    "final": training_stats.get("disposal_rates", [0])[-1] if training_stats.get("disposal_rates") else 0.0,
+                },
+                "states_explored_final": training_stats.get("states_explored", [len(agent.q_table)])[-1]
+                if training_stats.get("states_explored")
+                else len(agent.q_table),
+                "q_table_size": len(agent.q_table),
+                "total_updates": getattr(agent, "total_updates", 0),
+            }
+
+            self.output.record_training_summary(training_summary, evaluation_stats)
+
             # Create symlink in models/ for backwards compatibility
             self.output.create_model_symlink()
         
@@ -270,18 +338,38 @@ class InteractivePipeline:
                 
                 sim = CourtSim(cfg, policy_cases)
                 result = sim.run()
-                
+
                 progress.update(task, completed=100)
-                
+
                 results[policy] = {
                     'result': result,
                     'cases': policy_cases,  # Use the deep-copied cases for this simulation
                     'sim': sim,
                     'dir': policy_dir
                 }
-            
+
             console.print(f"    [green]OK[/green] {result.disposals:,} disposals ({result.disposals/len(cases):.1%})")
-        
+
+            allocator_stats = sim.allocator.get_utilization_stats()
+            backlog = sum(1 for c in policy_cases if not c.is_disposed)
+
+            kpis = {
+                "policy": policy,
+                "disposals": result.disposals,
+                "disposal_rate": result.disposals / len(policy_cases),
+                "utilization": result.utilization,
+                "hearings_total": result.hearings_total,
+                "hearings_heard": result.hearings_heard,
+                "hearings_adjourned": result.hearings_adjourned,
+                "backlog": backlog,
+                "backlog_rate": backlog / len(policy_cases) if policy_cases else 0,
+                "fairness_gini": allocator_stats.get("load_balance_gini"),
+                "avg_daily_load": allocator_stats.get("avg_daily_load"),
+                "capacity_rejections": allocator_stats.get("capacity_rejections"),
+            }
+
+            self.output.record_simulation_kpis(policy, kpis)
+
         self.sim_results = results
         console.print(f"  [green]OK[/green] All simulations complete")
     
