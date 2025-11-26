@@ -30,3 +30,7 @@ Data/test_verification/
 !Data/README.md
 !pyproject.toml
 !Data/court_data.duckdb
+
+# Bundled baseline parameters for scheduler
+!scheduler/data/defaults/*.csv
+!scheduler/data/defaults/*.json
