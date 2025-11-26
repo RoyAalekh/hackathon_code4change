@@ -25,7 +25,7 @@ class EventWriter:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._buffer = []  # in-memory rows to append
         if not self.path.exists():
-            with self.path.open("w", newline="") as f:
+            with self.path.open("w", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
                 w.writerow([
                     "date", "type", "case_id", "case_type", "stage", "courtroom_id",
@@ -57,7 +57,7 @@ class EventWriter:
     def flush(self) -> None:
         if not self._buffer:
             return
-        with self.path.open("a", newline="") as f:
+        with self.path.open("a", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerows(self._buffer)
         self._buffer.clear()

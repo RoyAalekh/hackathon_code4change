@@ -531,7 +531,6 @@ def get_interactive_config() -> PipelineConfig:
     
     # Output
     console.print("\n[bold]Output Options[/bold]")
-    output_dir = Prompt.ask("Output directory", default="data/hackathon_run")
     generate_cause_lists = Confirm.ask("Generate daily cause lists?", default=True)
     generate_visualizations = Confirm.ask("Generate performance visualizations?", default=True)
     
@@ -558,21 +557,17 @@ def interactive():
     console.print(f"  RL Learning Rate: {config.rl_training.learning_rate}")
     console.print(f"  Simulation: {config.sim_days} days")
     console.print(f"  Policies: {', '.join(config.policies)}")
-    console.print(f"  Output: {config.output_dir}")
+    console.print(f"  Output: outputs/runs/run_<timestamp>/")
     
     if not Confirm.ask("\nProceed with this configuration?", default=True):
         console.print("Cancelled.")
         return
     
-    # Save configuration
-    config_file = Path(config.output_dir) / "pipeline_config.json"
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_file, 'w') as f:
-        json.dump(asdict(config), f, indent=2)
-    
-    # Execute pipeline
+    # Execute pipeline (OutputManager handles output structure)
     pipeline = InteractivePipeline(config)
     start_time = time.time()
+    
+    console.print(f"\n[dim]Run directory: {pipeline.output.run_dir}[/dim]\n")
     
     pipeline.run()
     
