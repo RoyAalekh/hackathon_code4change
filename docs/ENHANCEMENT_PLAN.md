@@ -122,7 +122,65 @@
 - scheduler/simulation/engine.py (configurable frequency)
 - scheduler/data/config.py (add parameter)
 
-## Priority 4: Enhanced Scheduling Constraints (P2 - Medium)
+## Priority 4: EDA and Configuration Robustness (P1 - High)
+
+### 4.0.1 Fix EDA Memory Issues
+**Problem**: EDA converts full Parquet to pandas, risks memory exhaustion
+**Impact**: Pipeline fails on large datasets (>50K cases)
+
+**Solution**:
+- Add sampling parameter: `eda_sample_size: Optional[int]` (default None = full)
+- Stream data instead of loading all at once
+- Downcast numeric columns before conversion
+- Add memory monitoring and warnings
+
+**Files**:
+- src/eda_exploration.py (add sampling)
+- src/eda_config.py (memory limits)
+
+### 4.0.2 Fix Headless Rendering
+**Problem**: Plotly renderer defaults to "browser", fails in CI/CD
+**Impact**: Cannot run EDA in automated pipelines
+
+**Solution**:
+- Detect headless environment (check DISPLAY env var)
+- Default to "png" or "svg" renderer in headless mode
+- Add `--renderer` CLI flag to override
+
+**Files**:
+- src/eda_exploration.py (renderer detection)
+- court_scheduler_rl.py (add CLI flag)
+
+### 4.0.3 Fix Missing Parameters Fallback
+**Problem**: get_latest_params_dir raises when no params exist
+**Impact**: Fresh environments can't run simulations
+
+**Solution**:
+- Bundle baseline parameters in `scheduler/data/defaults/`
+- Fallback to bundled params if no EDA run found
+- Add `--use-defaults` flag to force baseline params
+- Log warning when using defaults vs EDA-derived
+
+**Files**:
+- scheduler/data/config.py (fallback logic)
+- scheduler/data/defaults/ (new directory with baseline params)
+
+### 4.0.4 Fix RL Reward Computation
+**Problem**: Rewards computed with fresh agent instance, divorced from training
+**Impact**: Learning signals inconsistent with policy behavior
+
+**Solution**:
+- Extract reward logic to standalone function: `compute_reward(case, action, outcome)`
+- Share reward function between training environment and agent
+- Remove agent re-instantiation in environment
+- Validate reward consistency in tests
+
+**Files**:
+- rl/rewards.py (new - shared reward logic)
+- rl/simple_agent.py (use shared rewards)
+- rl/training.py (use shared rewards)
+
+## Priority 5: Enhanced Scheduling Constraints (P2 - Medium)
 
 ### 4.1 Judge Blocking & Availability
 **Problem**: No per-judge blocked dates
@@ -189,10 +247,25 @@
 
 ## Implementation Order
 
-1. **Week 1**: Fix state bugs (1.1, 1.2, 1.3) + tests
-2. **Week 2**: Strengthen ripeness (2.1, 2.2) + re-enable inflow (3.1, 3.2)
-3. **Week 3**: Enhanced constraints (4.1, 4.2, 4.3)
-4. **Week 4**: Comprehensive testing + ripeness learning feedback (2.3)
+1. **Week 1**: Fix critical bugs
+   - State management (1.1, 1.2, 1.3)
+   - Configuration robustness (4.0.3 - parameter fallback)
+   - Unit tests for above
+
+2. **Week 2**: Strengthen core systems
+   - Ripeness detection (2.1, 2.2 - UNKNOWN status, multi-signal)
+   - RL reward alignment (4.0.4 - shared reward logic)
+   - Re-enable inflow (3.1, 3.2)
+
+3. **Week 3**: Robustness and constraints
+   - EDA scaling (4.0.1 - memory management)
+   - Headless rendering (4.0.2 - CI/CD compatibility)
+   - Enhanced constraints (5.1, 5.2, 5.3)
+
+4. **Week 4**: Testing and polish
+   - Comprehensive integration tests
+   - Ripeness learning feedback (2.3)
+   - All edge cases documented
 
 ## Success Criteria
 
