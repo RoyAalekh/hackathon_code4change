@@ -6,12 +6,23 @@ Implements hybrid approach from RL_EXPLORATION_PLAN.md:
 - Integrates with existing simulation framework
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from datetime import date
 from pathlib import Path
 
 from scheduler.core.case import Case
 from scheduler.core.policy import SchedulerPolicy
+
+try:
+    from rl.config import PolicyConfig, DEFAULT_POLICY_CONFIG
+except ImportError:
+    # Fallback if rl module not available
+    from dataclasses import dataclass
+    @dataclass
+    class PolicyConfig:
+        min_gap_days: int = 7
+        old_case_threshold_days: int = 180
+    DEFAULT_POLICY_CONFIG = PolicyConfig()
 from scheduler.simulation.policies.readiness import ReadinessPolicy
 
 try:
@@ -31,57 +42,43 @@ except ImportError as e:
 class RLPolicy(SchedulerPolicy):
     """RL-enhanced scheduling policy with hybrid rule-based + RL approach."""
     
-    def __init__(self, agent_path: Optional[Path] = None, fallback_to_readiness: bool = True):
+    def __init__(self, agent_path: Path, policy_config: PolicyConfig = None):
         """Initialize RL policy.
         
         Args:
-            agent_path: Path to trained RL agent file
-            fallback_to_readiness: Whether to fall back to readiness policy if RL fails
+            agent_path: Path to trained RL agent file (REQUIRED)
+        
+        Raises:
+            ImportError: If RL module not available
+            FileNotFoundError: If agent model file doesn't exist
+            RuntimeError: If agent fails to load
         """
         super().__init__()
         
-        self.fallback_to_readiness = fallback_to_readiness
-        self.readiness_policy = ReadinessPolicy() if fallback_to_readiness else None
-        
-        # Initialize RL agent
-        self.agent: Optional[TabularQAgent] = None
-        self.agent_loaded = False
+        # Use provided config or default
+        self.config = policy_config if policy_config is not None else DEFAULT_POLICY_CONFIG
         
         if not RL_AVAILABLE:
-            print("[WARN] RL module not available, falling back to readiness policy")
-            return
-            
-        # Try to load RL agent from various locations
-        search_paths = [
-            Path("models/intensive_trained_rl_agent.pkl"),  # Intensive training
-            Path("models/trained_rl_agent.pkl"),  # Standard training
-            agent_path if agent_path else None  # Custom path
-        ]
+            raise ImportError("RL module not available. Install required dependencies.")
         
-        for check_path in search_paths:
-            if check_path and check_path.exists():
-                try:
-                    self.agent = TabularQAgent.load(check_path)
-                    self.agent_loaded = True
-                    print(f"[INFO] Loaded RL agent from {check_path}")
-                    print(f"[INFO] Agent stats: {self.agent.get_stats()}")
-                    break
-                except Exception as e:
-                    print(f"[WARN] Failed to load agent from {check_path}: {e}")
+        # Ensure agent_path is Path object
+        if not isinstance(agent_path, Path):
+            agent_path = Path(agent_path)
         
-        if not self.agent_loaded and agent_path and agent_path.exists():
-            try:
-                self.agent = TabularQAgent.load(agent_path)
-                self.agent_loaded = True
-                print(f"[INFO] Loaded RL agent from {agent_path}")
-                print(f"[INFO] Agent stats: {self.agent.get_stats()}")
-            except Exception as e:
-                print(f"[WARN] Failed to load RL agent from {agent_path}: {e}")
+        # Validate model file exists
+        if not agent_path.exists():
+            raise FileNotFoundError(
+                f"RL agent model not found at {agent_path}. "
+                "Train the agent first or provide correct path."
+            )
         
-        if not self.agent_loaded:
-            # Create new untrained agent
-            self.agent = TabularQAgent(learning_rate=0.1, epsilon=0.0)  # No exploration in production
-            print("[INFO] Using untrained RL agent (will behave randomly initially)")
+        # Load agent
+        try:
+            self.agent = TabularQAgent.load(agent_path)
+            print(f"[INFO] Loaded RL agent from {agent_path}")
+            print(f"[INFO] Agent stats: {self.agent.get_stats()}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to load RL agent from {agent_path}: {e}")
     
     def sort_cases(self, cases: List[Case], current_date: date, **kwargs) -> List[Case]:
         """Sort cases by RL-based priority scores with rule-based filtering.
@@ -94,13 +91,7 @@ class RLPolicy(SchedulerPolicy):
         if not cases:
             return []
         
-        # If RL is not available or agent not loaded, use fallback
-        if not RL_AVAILABLE or not self.agent:
-            if self.readiness_policy:
-                return self.readiness_policy.prioritize(cases, current_date)
-            else:
-                # Simple age-based fallback
-                return sorted(cases, key=lambda c: c.age_days or 0, reverse=True)
+        # Agent is guaranteed to be loaded (checked in __init__)
         
         try:
             # Apply rule-based filtering first (like readiness policy does)
@@ -124,12 +115,8 @@ class RLPolicy(SchedulerPolicy):
             return sorted_cases
             
         except Exception as e:
-            print(f"[ERROR] RL policy failed: {e}")
-            # Fall back to readiness policy
-            if self.readiness_policy:
-                return self.readiness_policy.prioritize(cases, current_date)
-            else:
-                return cases  # Return unsorted
+            # This should never happen - agent is validated in __init__
+            raise RuntimeError(f"RL policy failed unexpectedly: {e}")
     
     def _apply_rule_based_filtering(self, cases: List[Case], current_date: date) -> List[Case]:
         """Apply rule-based filtering similar to ReadinessPolicy.
@@ -148,7 +135,7 @@ class RLPolicy(SchedulerPolicy):
             # Skip if too soon since last hearing (basic fairness)
             if case.last_hearing_date:
                 days_since = (current_date - case.last_hearing_date).days
-                if days_since < 7:  # Min 7 days gap
+                if days_since < self.config.min_gap_days:
                     continue
             
             # Include urgent cases regardless of other filters
@@ -161,7 +148,8 @@ class RLPolicy(SchedulerPolicy):
                 if case.ripeness_status == "RIPE":
                     eligible_cases.append(case)
                 # Skip UNRIPE cases unless they're very old
-                elif case.age_days and case.age_days > 180:  # Old cases get priority
+                elif (self.config.allow_old_unripe_cases and 
+                      case.age_days and case.age_days > self.config.old_case_threshold_days):
                     eligible_cases.append(case)
             else:
                 # No ripeness info, include case

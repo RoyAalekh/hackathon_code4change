@@ -139,7 +139,7 @@ ax.legend(fontsize=11)
 ax.grid(axis='y', alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(viz_dir / "cause_list_daily_size_comparison.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(viz_dir / "cause_list_daily_size_comparison.png"), dpi=300, bbox_inches='tight')
 print(f"  Saved: {viz_dir / 'cause_list_daily_size_comparison.png'}")
 
 # 2. Variability (std dev) comparison
@@ -173,7 +173,7 @@ ax.legend(fontsize=11)
 ax.grid(axis='y', alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(viz_dir / "cause_list_variability.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(viz_dir / "cause_list_variability.png"), dpi=300, bbox_inches='tight')
 print(f"  Saved: {viz_dir / 'cause_list_variability.png'}")
 
 # 3. Cases per courtroom efficiency
@@ -207,7 +207,7 @@ ax.legend(fontsize=11)
 ax.grid(axis='y', alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(viz_dir / "cause_list_courtroom_load.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(viz_dir / "cause_list_courtroom_load.png"), dpi=300, bbox_inches='tight')
 print(f"  Saved: {viz_dir / 'cause_list_courtroom_load.png'}")
 
 # 4. Statistical summary table
@@ -252,7 +252,7 @@ for i in range(1, 6):
 
 plt.title('Cause List Statistics Summary: Average Across All Scenarios', 
           fontsize=14, fontweight='bold', pad=20)
-plt.savefig(viz_dir / "cause_list_summary_table.png", dpi=300, bbox_inches='tight')
+plt.savefig(str(viz_dir / "cause_list_summary_table.png"), dpi=300, bbox_inches='tight')
 print(f"  Saved: {viz_dir / 'cause_list_summary_table.png'}")
 
 print("\n" + "=" * 80)

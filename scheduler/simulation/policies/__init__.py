@@ -12,10 +12,17 @@ POLICY_REGISTRY = {
     "rl": RLPolicy,
 }
 
-def get_policy(name: str):
+def get_policy(name: str, **kwargs):
+    """Get a policy instance by name.
+    
+    Args:
+        name: Policy name (fifo, age, readiness, rl)
+        **kwargs: Additional arguments passed to policy constructor
+                  (e.g., agent_path for RL policy)
+    """
     name_lower = name.lower()
     if name_lower not in POLICY_REGISTRY:
         raise ValueError(f"Unknown policy: {name}")
-    return POLICY_REGISTRY[name_lower]()
+    return POLICY_REGISTRY[name_lower](**kwargs)
 
 __all__ = ["SchedulerPolicy", "FIFOPolicy", "AgeBasedPolicy", "ReadinessPolicy", "RLPolicy", "get_policy"]
