@@ -8,7 +8,7 @@ Responsibilities:
 - Entropy of stage transitions (predictability).
 - Case-type summary stats (disposal, hearing counts, gaps).
 - Readiness score and alert flags per case.
-- Export JSON/CSV parameter files into PARAMS_DIR.
+- Export JSON/CSV parameter files into _get_params_dir().
 """
 
 import json
@@ -16,15 +16,15 @@ from datetime import timedelta
 
 import polars as pl
 from src.eda_config import (
-    CASES_CLEAN_PARQUET,
-    HEARINGS_CLEAN_PARQUET,
-    PARAMS_DIR,
+    _get_cases_parquet,
+    _get_hearings_parquet,
+    _get_params_dir,
 )
 
 
 def load_cleaned():
-    cases = pl.read_parquet(CASES_CLEAN_PARQUET)
-    hearings = pl.read_parquet(HEARINGS_CLEAN_PARQUET)
+    cases = pl.read_parquet(_get_cases_parquet())
+    hearings = pl.read_parquet(_get_hearings_parquet())
     return cases, hearings
 
 
@@ -94,14 +94,14 @@ def extract_parameters() -> None:
             <= pl.col("STAGE_TO").map_elements(lambda s: order_idx.get(s, 10))
         ).sort("N", descending=True)
 
-        transitions.write_csv(PARAMS_DIR / "stage_transitions.csv")
+        transitions.write_csv(str(_get_params_dir() / "stage_transitions.csv"))
 
         # Probabilities per STAGE_FROM
         row_tot = transitions.group_by("STAGE_FROM").agg(pl.col("N").sum().alias("row_n"))
         trans_probs = transitions.join(row_tot, on="STAGE_FROM").with_columns(
             (pl.col("N") / pl.col("row_n")).alias("p")
         )
-        trans_probs.write_csv(PARAMS_DIR / "stage_transition_probs.csv")
+        trans_probs.write_csv(str(_get_params_dir() / "stage_transition_probs.csv"))
 
         # Entropy of transitions
         ent = (
@@ -109,7 +109,7 @@ def extract_parameters() -> None:
             .agg((-(pl.col("p") * pl.col("p").log()).sum()).alias("entropy"))
             .sort("entropy", descending=True)
         )
-        ent.write_csv(PARAMS_DIR / "stage_transition_entropy.csv")
+        ent.write_csv(str(_get_params_dir() / "stage_transition_entropy.csv"))
 
         # Stage residence (runs)
         runs = (
@@ -147,7 +147,7 @@ def extract_parameters() -> None:
             )
             .sort("RUN_MEDIAN_DAYS", descending=True)
         )
-        stage_duration.write_csv(PARAMS_DIR / "stage_duration.csv")
+        stage_duration.write_csv(str(_get_params_dir() / "stage_duration.csv"))
 
     # --------------------------------------------------
     # 2. Court capacity (cases per courtroom per day)
@@ -169,13 +169,13 @@ def extract_parameters() -> None:
             )
             .sort("slots_median", descending=True)
         )
-        cap_stats.write_csv(PARAMS_DIR / "court_capacity_stats.csv")
+        cap_stats.write_csv(str(_get_params_dir() / "court_capacity_stats.csv"))
         # simple global aggregate
         capacity_stats = {
             "slots_median_global": float(cap["heard_count"].median()),
             "slots_p90_global": float(cap["heard_count"].quantile(0.9)),
         }
-        with open(PARAMS_DIR / "court_capacity_global.json", "w") as f:
+        with open(str(_get_params_dir() / "court_capacity_global.json"), "w") as f:
             json.dump(capacity_stats, f, indent=2)
 
     # --------------------------------------------------
@@ -245,7 +245,7 @@ def extract_parameters() -> None:
             )
             .sort(["Remappedstages", "casetype"])
         )
-        outcome_stage.write_csv(PARAMS_DIR / "adjournment_proxies.csv")
+        outcome_stage.write_csv(str(_get_params_dir() / "adjournment_proxies.csv"))
 
     # --------------------------------------------------
     # 4. Case-type summary and correlations
@@ -263,13 +263,13 @@ def extract_parameters() -> None:
         )
         .sort("n_cases", descending=True)
     )
-    by_type.write_csv(PARAMS_DIR / "case_type_summary.csv")
+    by_type.write_csv(str(_get_params_dir() / "case_type_summary.csv"))
 
     # Correlations for a quick diagnostic
     corr_cols = ["DISPOSALTIME_ADJ", "N_HEARINGS", "GAP_MEDIAN"]
     corr_df = cases.select(corr_cols).to_pandas()
     corr = corr_df.corr(method="spearman")
-    corr.to_csv(PARAMS_DIR / "correlations_spearman.csv")
+    corr.to_csv(str(_get_params_dir() / "correlations_spearman.csv"))
 
     # --------------------------------------------------
     # 5. Readiness score and alerts
@@ -364,7 +364,7 @@ def extract_parameters() -> None:
         "ALERT_LONG_GAP",
     ]
     feature_cols_existing = [c for c in feature_cols if c in cases.columns]
-    cases.select(feature_cols_existing).write_csv(PARAMS_DIR / "cases_features.csv")
+    cases.select(feature_cols_existing).write_csv(str(_get_params_dir() / "cases_features.csv"))
 
     # Simple age funnel
     if {"DATE_FILED", "DECISION_DATE"}.issubset(cases.columns):
@@ -388,12 +388,12 @@ def extract_parameters() -> None:
             .agg(pl.len().alias("N"))
             .sort("AGE_BUCKET")
         )
-        age_funnel.write_csv(PARAMS_DIR / "age_funnel.csv")
+        age_funnel.write_csv(str(_get_params_dir() / "age_funnel.csv"))
 
 
 def run_parameter_export() -> None:
     extract_parameters()
-    print("Parameter extraction complete. Files in:", PARAMS_DIR.resolve())
+    print("Parameter extraction complete. Files in:", _get_params_dir().resolve())
 
 
 if __name__ == "__main__":

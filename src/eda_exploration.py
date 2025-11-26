@@ -13,7 +13,7 @@ Inputs:
 - Cleaned Parquet from eda_load_clean.
 
 Outputs:
-- Interactive HTML plots in FIGURES_DIR and versioned copies in RUN_DIR.
+- Interactive HTML plots in FIGURES_DIR and versioned copies in _get_run_dir().
 - Some CSV summaries (e.g., stage_duration.csv, transitions.csv, monthly_anomalies.csv).
 """
 
@@ -25,19 +25,19 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import polars as pl
 from src.eda_config import (
-    CASES_CLEAN_PARQUET,
+    _get_cases_parquet,
     FIGURES_DIR,
-    HEARINGS_CLEAN_PARQUET,
-    RUN_DIR,
-    copy_to_versioned,
+    _get_hearings_parquet,
+    _get_run_dir,
+    safe_write_figure,
 )
 
 pio.renderers.default = "browser"
 
 
 def load_cleaned():
-    cases = pl.read_parquet(CASES_CLEAN_PARQUET)
-    hearings = pl.read_parquet(HEARINGS_CLEAN_PARQUET)
+    cases = pl.read_parquet(_get_cases_parquet())
+    hearings = pl.read_parquet(_get_hearings_parquet())
     print("Loaded cleaned data for exploration")
     print("Cases:", cases.shape, "Hearings:", hearings.shape)
     return cases, hearings
@@ -58,9 +58,7 @@ def run_exploration() -> None:
         title="Case Type Distribution",
     )
     fig1.update_layout(showlegend=False, xaxis_title="Case Type", yaxis_title="Number of Cases")
-    f1 = "1_case_type_distribution.html"
-    fig1.write_html(str(FIGURES_DIR / f1))
-    copy_to_versioned(f1)
+    safe_write_figure(fig1, "1_case_type_distribution.html")
 
     # --------------------------------------------------
     # 2. Filing Trends by Year
@@ -73,8 +71,7 @@ def run_exploration() -> None:
         fig2.update_traces(line_color="royalblue")
         fig2.update_layout(xaxis=dict(rangeslider=dict(visible=True)))
         f2 = "2_cases_filed_by_year.html"
-        fig2.write_html(str(FIGURES_DIR / f2))
-        copy_to_versioned(f2)
+        safe_write_figure(fig2, f2)
 
     # --------------------------------------------------
     # 3. Disposal Duration Distribution
@@ -89,8 +86,7 @@ def run_exploration() -> None:
         )
         fig3.update_layout(xaxis_title="Days", yaxis_title="Cases")
         f3 = "3_disposal_time_distribution.html"
-        fig3.write_html(str(FIGURES_DIR / f3))
-        copy_to_versioned(f3)
+        safe_write_figure(fig3, f3)
 
     # --------------------------------------------------
     # 4. Hearings vs Disposal Time
@@ -106,8 +102,7 @@ def run_exploration() -> None:
         )
         fig4.update_traces(marker=dict(size=6, opacity=0.7))
         f4 = "4_hearings_vs_disposal.html"
-        fig4.write_html(str(FIGURES_DIR / f4))
-        copy_to_versioned(f4)
+        safe_write_figure(fig4, f4)
 
     # --------------------------------------------------
     # 5. Boxplot by Case Type
@@ -121,8 +116,7 @@ def run_exploration() -> None:
     )
     fig5.update_layout(showlegend=False)
     f5 = "5_box_disposal_by_type.html"
-    fig5.write_html(str(FIGURES_DIR / f5))
-    copy_to_versioned(f5)
+    safe_write_figure(fig5, f5)
 
     # --------------------------------------------------
     # 6. Stage Frequency
@@ -139,8 +133,7 @@ def run_exploration() -> None:
         )
         fig6.update_layout(showlegend=False, xaxis_title="Stage", yaxis_title="Count")
         f6 = "6_stage_frequency.html"
-        fig6.write_html(str(FIGURES_DIR / f6))
-        copy_to_versioned(f6)
+        safe_write_figure(fig6, f6)
 
     # --------------------------------------------------
     # 7. Gap median by case type
@@ -154,8 +147,7 @@ def run_exploration() -> None:
             title="Median Hearing Gap by Case Type",
         )
         fg = "9_gap_median_by_type.html"
-        fig_gap.write_html(str(FIGURES_DIR / fg))
-        copy_to_versioned(fg)
+        safe_write_figure(fig_gap, fg)
 
     # --------------------------------------------------
     # 8. Stage transitions & bottleneck plot
@@ -219,7 +211,7 @@ def run_exploration() -> None:
             <= pl.col("STAGE_TO").map_elements(lambda s: order_idx.get(s, 10))
         ).sort("N", descending=True)
 
-        transitions.write_csv(RUN_DIR / "transitions.csv")
+        transitions.write_csv(str(_get_run_dir() / "transitions.csv"))
 
         runs = (
             h_stage.with_columns(
@@ -256,7 +248,7 @@ def run_exploration() -> None:
             )
             .sort("RUN_MEDIAN_DAYS", descending=True)
         )
-        stage_duration.write_csv(RUN_DIR / "stage_duration.csv")
+        stage_duration.write_csv(str(_get_run_dir() / "stage_duration.csv"))
 
         # Sankey
         try:
@@ -284,8 +276,7 @@ def run_exploration() -> None:
             )
             sankey.update_layout(title_text="Stage Transition Sankey (Ordered)")
             f10 = "10_stage_transition_sankey.html"
-            sankey.write_html(str(FIGURES_DIR / f10))
-            copy_to_versioned(f10)
+            safe_write_figure(sankey, f10)
         except Exception as e:
             print("Sankey error:", e)
 
@@ -301,8 +292,7 @@ def run_exploration() -> None:
                 title="Stage Bottleneck Impact (Median Days x Runs)",
             )
             fb = "15_bottleneck_impact.html"
-            fig_b.write_html(str(FIGURES_DIR / fb))
-            copy_to_versioned(fb)
+            safe_write_figure(fig_b, fb)
         except Exception as e:
             print("Bottleneck plot error:", e)
 
@@ -321,7 +311,7 @@ def run_exploration() -> None:
             .with_columns(pl.date(pl.col("Y"), pl.col("M"), pl.lit(1)).alias("YM"))
         )
         monthly_listings = m_hear.group_by("YM").agg(pl.len().alias("N_HEARINGS")).sort("YM")
-        monthly_listings.write_csv(RUN_DIR / "monthly_hearings.csv")
+        monthly_listings.write_csv(str(_get_run_dir() / "monthly_hearings.csv"))
 
         try:
             fig_m = px.line(
@@ -332,8 +322,7 @@ def run_exploration() -> None:
             )
             fig_m.update_layout(yaxis=dict(tickformat=",d"))
             fm = "11_monthly_hearings.html"
-            fig_m.write_html(str(FIGURES_DIR / fm))
-            copy_to_versioned(fm)
+            safe_write_figure(fig_m, fm)
         except Exception as e:
             print("Monthly listings error:", e)
 
@@ -380,12 +369,11 @@ def run_exploration() -> None:
                 yaxis=dict(tickformat=",d"),
             )
             fw = "11b_monthly_waterfall.html"
-            fig_w.write_html(str(FIGURES_DIR / fw))
-            copy_to_versioned(fw)
+            safe_write_figure(fig_w, fw)
 
             ml_pd_out = ml_pd.copy()
             ml_pd_out["YM"] = ml_pd_out["YM"].astype(str)
-            ml_pd_out.to_csv(RUN_DIR / "monthly_anomalies.csv", index=False)
+            ml_pd_out.to_csv(str(_get_run_dir() / "monthly_anomalies.csv"), index=False)
         except Exception as e:
             print("Monthly waterfall error:", e)
 
@@ -420,8 +408,7 @@ def run_exploration() -> None:
                 xaxis={"categoryorder": "total descending"}, yaxis=dict(tickformat=",d")
             )
             fj = "12_judge_day_load.html"
-            fig_j.write_html(str(FIGURES_DIR / fj))
-            copy_to_versioned(fj)
+            safe_write_figure(fig_j, fj)
         except Exception as e:
             print("Judge workload error:", e)
 
@@ -447,8 +434,7 @@ def run_exploration() -> None:
                 xaxis={"categoryorder": "total descending"}, yaxis=dict(tickformat=",d")
             )
             fc = "12b_court_day_load.html"
-            fig_court.write_html(str(FIGURES_DIR / fc))
-            copy_to_versioned(fc)
+            safe_write_figure(fig_court, fc)
         except Exception as e:
             print("Court workload error:", e)
 
@@ -488,7 +474,7 @@ def run_exploration() -> None:
             .with_columns((pl.col("N") / pl.col("N").sum().over("CASE_TYPE")).alias("SHARE"))
             .sort(["CASE_TYPE", "SHARE"], descending=[False, True])
         )
-        tag_share.write_csv(RUN_DIR / "purpose_tag_shares.csv")
+        tag_share.write_csv(str(_get_run_dir() / "purpose_tag_shares.csv"))
         try:
             fig_t = px.bar(
                 tag_share.to_pandas(),
@@ -499,8 +485,7 @@ def run_exploration() -> None:
                 barmode="stack",
             )
             ft = "14_purpose_tag_shares.html"
-            fig_t.write_html(str(FIGURES_DIR / ft))
-            copy_to_versioned(ft)
+            safe_write_figure(fig_t, ft)
         except Exception as e:
             print("Purpose shares error:", e)
 

@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import argparse
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 import typer
 from rich.console import Console
@@ -38,36 +38,37 @@ class PipelineConfig:
     stage_mix: str = "auto"
     seed: int = 42
     
-    # RL Training
-    episodes: int = 100
-    cases_per_episode: int = 1000
-    episode_length: int = 45
-    learning_rate: float = 0.15
-    initial_epsilon: float = 0.4
-    epsilon_decay: float = 0.99
-    min_epsilon: float = 0.05
+    # RL Training - delegate to RLTrainingConfig
+    rl_training: "RLTrainingConfig" = None  # Will be set in __post_init__
     
     # Simulation
     sim_days: int = 730  # 2 years
     sim_start_date: Optional[str] = None
     policies: List[str] = None
     
-    # Output
-    output_dir: str = "data/hackathon_run"
+    # Output (no longer user-configurable - managed by OutputManager)
     generate_cause_lists: bool = True
     generate_visualizations: bool = True
     
     def __post_init__(self):
         if self.policies is None:
             self.policies = ["readiness", "rl"]
+        
+        # Import here to avoid circular dependency
+        if self.rl_training is None:
+            from rl.config import DEFAULT_RL_TRAINING_CONFIG
+            self.rl_training = DEFAULT_RL_TRAINING_CONFIG
 
 class InteractivePipeline:
     """Interactive pipeline orchestrator"""
     
-    def __init__(self, config: PipelineConfig):
+    def __init__(self, config: PipelineConfig, run_id: str = None):
         self.config = config
-        self.output_dir = Path(config.output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        from scheduler.utils.output_manager import OutputManager
+        self.output = OutputManager(run_id=run_id)
+        self.output.create_structure()
+        self.output.save_config(config)
         
     def run(self):
         """Execute complete pipeline"""
@@ -108,9 +109,16 @@ class InteractivePipeline:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
+            console=console) as progress:
             task = progress.add_task("Running EDA pipeline...", total=None)
+            
+            # Configure EDA output paths
+            from src.eda_config import set_output_paths
+            set_output_paths(
+                eda_dir=self.output.eda_figures,
+                data_dir=self.output.eda_data,
+                params_dir=self.output.eda_params
+            )
             
             from src.eda_load_clean import run_load_and_clean
             from src.eda_exploration import run_exploration
@@ -129,14 +137,13 @@ class InteractivePipeline:
         console.print(f"\n[bold cyan]Step 2/7: Data Generation[/bold cyan]")
         console.print(f"  Generating {self.config.n_cases:,} cases ({self.config.start_date} to {self.config.end_date})")
         
-        cases_file = self.output_dir / "training_cases.csv"
+        cases_file = self.output.training_cases_file
         
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
-            console=console,
-        ) as progress:
+            console=console) as progress:
             task = progress.add_task("Generating cases...", total=100)
             
             from datetime import date as date_cls
@@ -159,55 +166,56 @@ class InteractivePipeline:
     def _step_3_rl_training(self):
         """Step 3: RL Agent Training"""
         console.print(f"\n[bold cyan]Step 3/7: RL Training[/bold cyan]")
-        console.print(f"  Episodes: {self.config.episodes}, Learning Rate: {self.config.learning_rate}")
+        console.print(f"  Episodes: {self.config.rl_training.episodes}, Learning Rate: {self.config.rl_training.learning_rate}")
         
-        model_file = self.output_dir / "trained_rl_agent.pkl"
+        model_file = self.output.trained_model_file
         
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            training_task = progress.add_task("Training RL agent...", total=self.config.episodes)
+            console=console) as progress:
+            training_task = progress.add_task("Training RL agent...", total=self.config.rl_training.episodes)
             
             # Import training components
             from rl.training import train_agent
             from rl.simple_agent import TabularQAgent
             import pickle
             
-            # Initialize agent
+            # Initialize agent with configured hyperparameters
+            rl_cfg = self.config.rl_training
             agent = TabularQAgent(
-                learning_rate=self.config.learning_rate,
-                epsilon=self.config.initial_epsilon,
-                discount=0.95
+                learning_rate=rl_cfg.learning_rate,
+                epsilon=rl_cfg.initial_epsilon,
+                discount=rl_cfg.discount_factor
             )
             
             # Training with progress updates
             # Note: train_agent handles its own progress internally
+            rl_cfg = self.config.rl_training
             training_stats = train_agent(
                 agent=agent,
-                episodes=self.config.episodes,
-                cases_per_episode=self.config.cases_per_episode,
-                episode_length=self.config.episode_length,
+                episodes=rl_cfg.episodes,
+                cases_per_episode=rl_cfg.cases_per_episode,
+                episode_length=rl_cfg.episode_length_days,
                 verbose=False  # Disable internal printing
             )
             
-            progress.update(training_task, completed=self.config.episodes)
+            progress.update(training_task, completed=rl_cfg.episodes)
             
             # Save trained agent
             agent.save(model_file)
             
-            # Also save to models directory for RL policy to find
-            models_dir = Path("models")
-            models_dir.mkdir(exist_ok=True)
-            standard_model_path = models_dir / "trained_rl_agent.pkl"
-            agent.save(standard_model_path)
+            # Create symlink in models/ for backwards compatibility
+            self.output.create_model_symlink()
         
         console.print(f"  [green]OK[/green] Training complete -> {model_file}")
-        console.print(f"  [green]OK[/green] Also saved to {standard_model_path}")
+        console.print(f"  [green]OK[/green] Model symlink: models/latest.pkl")
         console.print(f"  [green]OK[/green] Final epsilon: {agent.epsilon:.4f}, States explored: {len(agent.q_table)}")
+        
+        # Store model path for simulation step
+        self.trained_model_path = model_file
     
     def _step_4_simulation(self):
         """Step 4: 2-Year Simulation"""
@@ -215,7 +223,7 @@ class InteractivePipeline:
         console.print(f"  Duration: {self.config.sim_days} days ({self.config.sim_days/365:.1f} years)")
         
         # Load cases
-        cases_file = self.output_dir / "training_cases.csv"
+        cases_file = self.output.training_cases_file
         from scheduler.data.case_generator import CaseGenerator
         cases = CaseGenerator.from_csv(cases_file)
         
@@ -227,36 +235,47 @@ class InteractivePipeline:
         for policy in self.config.policies:
             console.print(f"\n  Running {policy} policy simulation...")
             
-            policy_dir = self.output_dir / f"simulation_{policy}"
+            policy_dir = self.output.get_policy_dir(policy)
             policy_dir.mkdir(exist_ok=True)
+            
+            # CRITICAL: Deep copy cases for each simulation to prevent state pollution
+            # Cases are mutated during simulation (status, hearing_count, disposal_date)
+            from copy import deepcopy
+            policy_cases = deepcopy(cases)
             
             with Progress(
                 SpinnerColumn(),
                 TextColumn(f"[progress.description]Simulating {policy}..."),
                 BarColumn(),
-                console=console,
-            ) as progress:
+                console=console) as progress:
                 task = progress.add_task("Simulating...", total=100)
                 
                 from scheduler.simulation.engine import CourtSim, CourtSimConfig
                 
-                cfg = CourtSimConfig(
-                    start=sim_start,
-                    days=self.config.sim_days,
-                    seed=self.config.seed,
-                    policy=policy,
-                    duration_percentile="median",
-                    log_dir=policy_dir,
-                )
+                # Prepare config with RL model path if needed
+                cfg_kwargs = {
+                    "start": sim_start,
+                    "days": self.config.sim_days,
+                    "seed": self.config.seed,
+                    "policy": policy,
+                    "duration_percentile": "median",
+                    "log_dir": policy_dir,
+                }
                 
-                sim = CourtSim(cfg, cases)
+                # Add RL agent path for RL policy
+                if policy == "rl" and hasattr(self, 'trained_model_path'):
+                    cfg_kwargs["rl_agent_path"] = self.trained_model_path
+                
+                cfg = CourtSimConfig(**cfg_kwargs)
+                
+                sim = CourtSim(cfg, policy_cases)
                 result = sim.run()
                 
                 progress.update(task, completed=100)
                 
                 results[policy] = {
                     'result': result,
-                    'cases': cases,
+                    'cases': policy_cases,  # Use the deep-copied cases for this simulation
                     'sim': sim,
                     'dir': policy_dir
                 }
@@ -280,8 +299,7 @@ class InteractivePipeline:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
+                console=console) as progress:
                 task = progress.add_task("Generating cause lists...", total=None)
                 
                 from scheduler.output.cause_list import CauseListGenerator
@@ -305,8 +323,7 @@ class InteractivePipeline:
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
+            console=console) as progress:
             task = progress.add_task("Analyzing results...", total=None)
             
             # Generate comparison report
@@ -327,7 +344,7 @@ class InteractivePipeline:
         summary = self._generate_executive_summary()
         
         # Save summary
-        summary_file = self.output_dir / "EXECUTIVE_SUMMARY.md"
+        summary_file = self.output.executive_summary_file
         with open(summary_file, 'w') as f:
             f.write(summary)
         
@@ -370,17 +387,17 @@ class InteractivePipeline:
         
         console.print(Panel.fit(
             f"[bold green]Pipeline Complete![/bold green]\n\n"
-            f"Results: {self.output_dir}/\n"
+            f"Results: {self.output.run_dir}/\n"
             f"Executive Summary: {summary_file}\n"
-            f"Visualizations: {self.output_dir}/visualizations/\n"
-            f"Cause Lists: {self.output_dir}/simulation_*/cause_lists/\n\n"
+            f"Visualizations: {self.output.visualizations_dir}/\n"
+            f"Cause Lists: {self.output.simulation_dir}/*/cause_lists/\n\n"
             f"[yellow]Ready for hackathon submission![/yellow]",
             box=box.DOUBLE_EDGE
         ))
     
     def _generate_comparison_report(self):
         """Generate detailed comparison report"""
-        report_file = self.output_dir / "COMPARISON_REPORT.md"
+        report_file = self.output.comparison_report_file
         
         with open(report_file, 'w') as f:
             f.write("# Court Scheduling System - Performance Comparison\n\n")
@@ -389,7 +406,9 @@ class InteractivePipeline:
             f.write("## Configuration\n\n")
             f.write(f"- Training Cases: {self.config.n_cases:,}\n")
             f.write(f"- Simulation Period: {self.config.sim_days} days ({self.config.sim_days/365:.1f} years)\n")
-            f.write(f"- RL Episodes: {self.config.episodes}\n")
+            f.write(f"- RL Episodes: {self.config.rl_training.episodes}\n")
+            f.write(f"- RL Learning Rate: {self.config.rl_training.learning_rate}\n")
+            f.write(f"- RL Epsilon: {self.config.rl_training.initial_epsilon}\n")
             f.write(f"- Policies Compared: {', '.join(self.config.policies)}\n\n")
             
             f.write("## Results Summary\n\n")
@@ -406,7 +425,7 @@ class InteractivePipeline:
     
     def _generate_visualizations(self):
         """Generate performance visualizations"""
-        viz_dir = self.output_dir / "visualizations"
+        viz_dir = self.output.visualizations_dir
         viz_dir.mkdir(exist_ok=True)
         
         # This would generate charts comparing policies
@@ -442,7 +461,7 @@ This intelligent court scheduling system uses Reinforcement Learning to optimize
 **{disposal_rate:.1%} Case Disposal Rate** - Significantly improved case clearance
 **{result.utilization:.1%} Court Utilization** - Optimal resource allocation  
 **{result.hearings_total:,} Hearings Scheduled** - Over {self.config.sim_days} days
-**AI-Powered Decisions** - Reinforcement learning with {self.config.episodes} training episodes
+**AI-Powered Decisions** - Reinforcement learning with {self.config.rl_training.episodes} training episodes
 
 ### Technical Innovation
 
@@ -493,8 +512,14 @@ def get_interactive_config() -> PipelineConfig:
     
     # RL Training
     console.print("\n[bold]RL Training[/bold]")
+    from rl.config import RLTrainingConfig
+    
     episodes = IntPrompt.ask("Training episodes", default=100)
     learning_rate = FloatPrompt.ask("Learning rate", default=0.15)
+    
+    rl_training_config = RLTrainingConfig(
+        episodes=episodes,
+        learning_rate=learning_rate)
     
     # Simulation
     console.print("\n[bold]Simulation[/bold]")
@@ -514,14 +539,11 @@ def get_interactive_config() -> PipelineConfig:
         n_cases=n_cases,
         start_date=start_date,
         end_date=end_date,
-        episodes=episodes,
-        learning_rate=learning_rate,
+        rl_training=rl_training_config,
         sim_days=sim_days,
         policies=policies,
-        output_dir=output_dir,
         generate_cause_lists=generate_cause_lists,
-        generate_visualizations=generate_visualizations,
-    )
+        generate_visualizations=generate_visualizations)
 
 @app.command()
 def interactive():
@@ -532,7 +554,8 @@ def interactive():
     console.print(f"\n[bold yellow]Configuration Summary:[/bold yellow]")
     console.print(f"  Cases: {config.n_cases:,}")
     console.print(f"  Period: {config.start_date} to {config.end_date}")
-    console.print(f"  RL Episodes: {config.episodes}")
+    console.print(f"  RL Episodes: {config.rl_training.episodes}")
+    console.print(f"  RL Learning Rate: {config.rl_training.learning_rate}")
     console.print(f"  Simulation: {config.sim_days} days")
     console.print(f"  Policies: {', '.join(config.policies)}")
     console.print(f"  Output: {config.output_dir}")
@@ -561,12 +584,12 @@ def quick():
     """Run quick demo with default parameters"""
     console.print("[bold blue]Quick Demo Pipeline[/bold blue]\n")
     
+    from rl.config import QUICK_DEMO_RL_CONFIG
+    
     config = PipelineConfig(
         n_cases=10000,
-        episodes=20,
-        sim_days=90,
-        output_dir="data/quick_demo",
-    )
+        rl_training=QUICK_DEMO_RL_CONFIG,
+        sim_days=90)
     
     pipeline = InteractivePipeline(config)
     pipeline.run()
