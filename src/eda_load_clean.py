@@ -13,9 +13,9 @@ from datetime import timedelta
 import polars as pl
 import duckdb
 from src.eda_config import (
-    CASES_CLEAN_PARQUET,
+    _get_cases_parquet,
     DUCKDB_FILE,
-    HEARINGS_CLEAN_PARQUET,
+    _get_hearings_parquet,
     NULL_TOKENS,
     RUN_TS,
     VERSION,
@@ -224,10 +224,10 @@ def clean_and_augment(
 
 
 def save_clean(cases: pl.DataFrame, hearings: pl.DataFrame) -> None:
-    cases.write_parquet(CASES_CLEAN_PARQUET)
-    hearings.write_parquet(HEARINGS_CLEAN_PARQUET)
-    print(f"Saved cleaned cases -> {CASES_CLEAN_PARQUET}")
-    print(f"Saved cleaned hearings -> {HEARINGS_CLEAN_PARQUET}")
+    cases.write_parquet(str(_get_cases_parquet()))
+    hearings.write_parquet(str(_get_hearings_parquet()))
+    print(f"Saved cleaned cases -> {str(_get_cases_parquet())}")
+    print(f"Saved cleaned hearings -> {str(_get_hearings_parquet())}")
 
     meta = {
         "version": VERSION,
