@@ -53,7 +53,10 @@ RIPE_KEYWORDS = ["ARGUMENTS", "HEARING", "FINAL", "JUDGMENT", "ORDERS", "DISPOSA
 
 
 class RipenessClassifier:
-    """Classify cases as RIPE or UNRIPE for scheduling optimization."""
+    """Classify cases as RIPE or UNRIPE for scheduling optimization.
+    
+    Thresholds can be adjusted dynamically based on accuracy feedback.
+    """
 
     # Stages that indicate case is ready for substantive hearing
     RIPE_STAGES = [
@@ -72,6 +75,7 @@ class RipenessClassifier:
     ]
 
     # Minimum evidence thresholds before declaring a case RIPE
+    # These can be adjusted via set_thresholds() for calibration
     MIN_SERVICE_HEARINGS = 1  # At least one hearing to confirm service/compliance
     MIN_STAGE_DAYS = 7  # Time spent in current stage to show compliance efforts
     MIN_CASE_AGE_DAYS = 14  # Minimum maturity before assuming readiness
@@ -262,3 +266,30 @@ class RipenessClassifier:
         }
         
         return estimates.get(ripeness, None)
+    
+    @classmethod
+    def set_thresholds(cls, new_thresholds: dict[str, int | float]) -> None:
+        """Update classification thresholds for calibration.
+        
+        Args:
+            new_thresholds: Dictionary with threshold names and values
+                           e.g., {"MIN_SERVICE_HEARINGS": 2, "MIN_STAGE_DAYS": 5}
+        """
+        for threshold_name, value in new_thresholds.items():
+            if hasattr(cls, threshold_name):
+                setattr(cls, threshold_name, int(value))
+            else:
+                raise ValueError(f"Unknown threshold: {threshold_name}")
+    
+    @classmethod
+    def get_current_thresholds(cls) -> dict[str, int]:
+        """Get current threshold values.
+        
+        Returns:
+            Dictionary of threshold names and values
+        """
+        return {
+            "MIN_SERVICE_HEARINGS": cls.MIN_SERVICE_HEARINGS,
+            "MIN_STAGE_DAYS": cls.MIN_STAGE_DAYS,
+            "MIN_CASE_AGE_DAYS": cls.MIN_CASE_AGE_DAYS,
+        }

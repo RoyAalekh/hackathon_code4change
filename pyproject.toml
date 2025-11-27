@@ -35,7 +35,7 @@ dev = [
 ]
 
 [project.scripts]
-court-scheduler = "court_scheduler.cli:app"
+court-scheduler = "cli.main:app"
 
 [build-system]
 requires = ["hatchling"]
