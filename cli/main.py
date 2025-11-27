@@ -371,6 +371,51 @@ def workflow(
 
 
 @app.command()
+def dashboard(
+    port: int = typer.Option(8501, "--port", "-p", help="Port to run dashboard on"),
+    host: str = typer.Option("localhost", "--host", help="Host address to bind to"),
+) -> None:
+    """Launch interactive dashboard."""
+    console.print("[bold blue]Launching Interactive Dashboard[/bold blue]")
+    console.print(f"Dashboard will be available at: http://{host}:{port}")
+    console.print("Press Ctrl+C to stop the dashboard\n")
+    
+    try:
+        import subprocess
+        import sys
+        
+        # Get path to dashboard app
+        app_path = Path(__file__).parent.parent / "scheduler" / "dashboard" / "app.py"
+        
+        if not app_path.exists():
+            console.print(f"[bold red]Error:[/bold red] Dashboard app not found at {app_path}")
+            raise typer.Exit(code=1)
+        
+        # Run streamlit
+        cmd = [
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            str(app_path),
+            "--server.port",
+            str(port),
+            "--server.address",
+            host,
+            "--browser.gatherUsageStats",
+            "false",
+        ]
+        
+        subprocess.run(cmd)
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Dashboard stopped[/yellow]")
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def version() -> None:
     """Show version information."""
     console.print(f"Court Scheduler CLI v{__version__}")
