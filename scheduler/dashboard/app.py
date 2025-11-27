@@ -87,12 +87,11 @@ if not all(data_status.values()):
             
             if st.button("Run EDA Pipeline", type="primary", use_container_width=True):
                 import subprocess
-                import sys
                 
                 with st.spinner("Running EDA pipeline... This may take a few minutes."):
                     try:
                         result = subprocess.run(
-                            [sys.executable, "-m", "uv", "run", "court-scheduler", "eda"],
+                            ["uv", "run", "court-scheduler", "eda"],
                             capture_output=True,
                             text=True,
                             cwd=str(Path.cwd()),
@@ -119,12 +118,11 @@ if not all(data_status.values()):
             
             if st.button("Generate Test Cases", use_container_width=True):
                 import subprocess
-                import sys
                 
                 with st.spinner(f"Generating {n_cases} test cases..."):
                     try:
                         result = subprocess.run(
-                            [sys.executable, "-m", "uv", "run", "court-scheduler", "generate", "--cases", str(n_cases)],
+                            ["uv", "run", "court-scheduler", "generate", "--cases", str(n_cases)],
                             capture_output=True,
                             text=True,
                             cwd=str(Path.cwd()),
