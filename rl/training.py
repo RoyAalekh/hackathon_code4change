@@ -13,7 +13,8 @@ import random
 from scheduler.data.case_generator import CaseGenerator
 from scheduler.simulation.engine import CourtSim, CourtSimConfig
 from scheduler.core.case import Case, CaseStatus
-from .simple_agent import TabularQAgent, CaseState
+from .simple_agent import TabularQAgent
+from .rewards import EpisodeRewardHelper
 
 
 class RLTrainingEnvironment:
@@ -32,6 +33,7 @@ class RLTrainingEnvironment:
         self.horizon_days = horizon_days
         self.current_date = start_date
         self.episode_rewards = []
+        self.reward_helper = EpisodeRewardHelper(total_cases=len(cases))
         
     def reset(self) -> List[Case]:
         """Reset environment for new training episode.
@@ -42,6 +44,7 @@ class RLTrainingEnvironment:
         """
         self.current_date = self.start_date
         self.episode_rewards = []
+        self.reward_helper = EpisodeRewardHelper(total_cases=len(self.cases))
         return self.cases.copy()
     
     def step(self, agent_decisions: Dict[str, int]) -> Tuple[List[Case], Dict[str, float], bool]:
@@ -57,18 +60,23 @@ class RLTrainingEnvironment:
         rewards = {}
         
         # For each case that agent decided to schedule
-        scheduled_cases = [case for case in self.cases 
+        scheduled_cases = [case for case in self.cases
                           if case.case_id in agent_decisions and agent_decisions[case.case_id] == 1]
         
         # Simulate hearing outcomes for scheduled cases
         for case in scheduled_cases:
             if case.is_disposed:
                 continue
-                
+
             # Simulate hearing outcome based on stage transition probabilities
             outcome = self._simulate_hearing_outcome(case)
             was_heard = "heard" in outcome.lower()
-            
+
+            # Track gap relative to previous hearing for reward shaping
+            previous_gap = None
+            if case.last_hearing_date:
+                previous_gap = max(0, (self.current_date - case.last_hearing_date).days)
+
             # Always record the hearing
             case.record_hearing(self.current_date, was_heard=was_heard, outcome=outcome)
             
@@ -83,7 +91,13 @@ class RLTrainingEnvironment:
             # If adjourned, case stays in same stage
             
             # Compute reward for this case
-            rewards[case.case_id] = self._compute_reward(case, outcome)
+            rewards[case.case_id] = self.reward_helper.compute_case_reward(
+                case,
+                was_scheduled=True,
+                hearing_outcome=outcome,
+                current_date=self.current_date,
+                previous_gap_days=previous_gap,
+            )
         
         # Update case ages
         for case in self.cases:
@@ -131,13 +145,7 @@ class RLTrainingEnvironment:
         # Default progression
         return "ARGUMENTS"
     
-    def _compute_reward(self, case: Case, outcome: str) -> float:
-        """Compute reward based on case and outcome."""
-        agent = TabularQAgent()  # Use for reward computation
-        return agent.compute_reward(case, was_scheduled=True, hearing_outcome=outcome)
-
-
-def train_agent(agent: TabularQAgent, episodes: int = 100, 
+def train_agent(agent: TabularQAgent, episodes: int = 100,
                 cases_per_episode: int = 1000, 
                 episode_length: int = 60,
                 verbose: bool = True) -> Dict:
