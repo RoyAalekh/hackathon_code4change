@@ -7,6 +7,8 @@ Or directly: streamlit run scheduler/dashboard/app.py
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 from scheduler.dashboard.utils import get_data_status
@@ -39,7 +41,12 @@ Navigate using the sidebar to access different sections.
 """)
 
 # System status
-st.markdown("### System Status")
+status_header_col1, status_header_col2 = st.columns([3, 1])
+with status_header_col1:
+    st.markdown("### System Status")
+with status_header_col2:
+    if st.button("🔄 Refresh Status", use_container_width=True):
+        st.rerun()
 
 data_status = get_data_status()
 
@@ -64,6 +71,88 @@ with col4:
     status = "✓" if data_status["eda_figures"] else "✗"
     color = "green" if data_status["eda_figures"] else "red"
     st.markdown(f":{color}[{status}] **EDA Figures**")
+
+# Setup Controls
+if not all(data_status.values()):
+    st.markdown("---")
+    st.markdown("### Setup Required")
+    st.info("Some prerequisites are missing. Use the controls below to set up the system.")
+    
+    setup_col1, setup_col2 = st.columns(2)
+    
+    with setup_col1:
+        st.markdown("#### EDA Pipeline")
+        if not data_status["cleaned_data"] or not data_status["parameters"]:
+            st.warning("EDA pipeline needs to be run to generate cleaned data and parameters")
+            
+            if st.button("Run EDA Pipeline", type="primary", use_container_width=True):
+                import subprocess
+                import sys
+                
+                with st.spinner("Running EDA pipeline... This may take a few minutes."):
+                    try:
+                        result = subprocess.run(
+                            [sys.executable, "-m", "uv", "run", "court-scheduler", "eda"],
+                            capture_output=True,
+                            text=True,
+                            cwd=str(Path.cwd()),
+                        )
+                        
+                        if result.returncode == 0:
+                            st.success("EDA pipeline completed successfully!")
+                            st.rerun()
+                        else:
+                            st.error(f"EDA pipeline failed with error code {result.returncode}")
+                            with st.expander("Show error details"):
+                                st.code(result.stderr, language="text")
+                    except Exception as e:
+                        st.error(f"Error running EDA pipeline: {e}")
+        else:
+            st.success("EDA pipeline already complete")
+    
+    with setup_col2:
+        st.markdown("#### Test Case Generation")
+        if not data_status["generated_cases"]:
+            st.info("Optional: Generate synthetic test cases for classifier testing")
+            
+            n_cases = st.number_input("Number of cases to generate", min_value=100, max_value=50000, value=1000, step=100)
+            
+            if st.button("Generate Test Cases", use_container_width=True):
+                import subprocess
+                import sys
+                
+                with st.spinner(f"Generating {n_cases} test cases..."):
+                    try:
+                        result = subprocess.run(
+                            [sys.executable, "-m", "uv", "run", "court-scheduler", "generate", "--cases", str(n_cases)],
+                            capture_output=True,
+                            text=True,
+                            cwd=str(Path.cwd()),
+                        )
+                        
+                        if result.returncode == 0:
+                            st.success(f"Generated {n_cases} test cases successfully!")
+                            st.rerun()
+                        else:
+                            st.error(f"Generation failed with error code {result.returncode}")
+                            with st.expander("Show error details"):
+                                st.code(result.stderr, language="text")
+                    except Exception as e:
+                        st.error(f"Error generating test cases: {e}")
+        else:
+            st.success("Test cases already generated")
+    
+    st.markdown("#### Manual Setup")
+    with st.expander("Run commands manually (if buttons don't work)"):
+        st.code("""
+# Run EDA pipeline
+uv run court-scheduler eda
+
+# Generate test cases (optional)
+uv run court-scheduler generate --cases 1000
+        """, language="bash")
+else:
+    st.success("All prerequisites are ready! You can use all dashboard features.")
 
 st.markdown("---")
 
@@ -90,15 +179,20 @@ with st.expander("How to use this dashboard"):
     - Visualize Q-table and action distributions
     """)
 
-with st.expander("Prerequisites"):
+with st.expander("Prerequisites & Setup"):
     st.markdown("""
-    Before using the dashboard, ensure you have:
+    The dashboard requires some initial setup:
     
-    1. **Run EDA pipeline**: `uv run court-scheduler eda`
-    2. **Generate test cases** (optional): `uv run court-scheduler generate`
-    3. **Parameters extracted**: Check that `configs/parameters/` exists
+    1. **EDA Pipeline**: Processes raw data and extracts parameters
+    2. **Test Cases** (optional): Generates synthetic cases for testing
     
-    If any system status shows ✗ above, run the corresponding command first.
+    **How to set up**:
+    - Use the interactive buttons in the "Setup Required" section above (if shown)
+    - Or run commands manually:
+      - `uv run court-scheduler eda`
+      - `uv run court-scheduler generate` (optional)
+    
+    The system status indicators at the top show what's ready.
     """)
 
 # Footer
