@@ -240,10 +240,10 @@ def train_agent(
     policy_cfg = policy_config or DEFAULT_POLICY_CONFIG
 
     # Align agent hyperparameters with config
+    agent.learning_rate = config.learning_rate
     agent.discount = config.discount_factor
     agent.epsilon = config.initial_epsilon
 
->>>>>>> origin/codex/modify-training-for-schedulingalgorithm-integration
     training_stats = {
         "episodes": [],
         "total_rewards": [],
