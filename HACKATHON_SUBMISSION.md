@@ -68,21 +68,21 @@ After completion, you'll find in your output directory:
 
 ```
 data/hackathon_run/
-├── pipeline_config.json          # Full configuration used
-├── training_cases.csv             # Generated case dataset
-├── trained_rl_agent.pkl           # Trained RL model
-├── EXECUTIVE_SUMMARY.md           # Hackathon submission summary
-├── COMPARISON_REPORT.md           # Detailed performance comparison
-├── simulation_rl/                 # RL policy results
-│   ├── events.csv
-│   ├── metrics.csv
-│   ├── report.txt
-│   └── cause_lists/
-│       └── daily_cause_list.csv   # 730 days of cause lists
-├── simulation_readiness/          # Baseline results
-│   └── ...
-└── visualizations/                # Performance charts
-    └── performance_charts.md
+|-- pipeline_config.json          # Full configuration used
+|-- training_cases.csv            # Generated case dataset
+|-- trained_rl_agent.pkl          # Trained RL model
+|-- EXECUTIVE_SUMMARY.md          # Hackathon submission summary
+|-- COMPARISON_REPORT.md          # Detailed performance comparison
+|-- simulation_rl/                # RL policy results
+    |-- events.csv
+    |-- metrics.csv
+    |-- report.txt
+    |-- cause_lists/
+        |-- daily_cause_list.csv  # 730 days of cause lists
+|-- simulation_readiness/         # Baseline results
+    |-- ...
+|-- visualizations/               # Performance charts
+    |-- performance_charts.md
 ```
 
 ### Hackathon Winning Features
