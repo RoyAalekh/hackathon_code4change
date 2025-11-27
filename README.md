@@ -75,102 +75,137 @@ This project delivers a **comprehensive** court scheduling system featuring:
 
 ## Quick Start
 
-### Hackathon Submission (Recommended)
+### Unified CLI (Recommended)
+
+All operations now use a single entry point:
 
 ```bash
-# Interactive 2-year RL simulation with cause list generation
-uv run python court_scheduler_rl.py interactive
+# See all available commands
+uv run court-scheduler --help
+
+# Run full workflow (generate cases + simulate)
+uv run court-scheduler workflow --cases 10000 --days 384
 ```
 
-This runs the complete pipeline:
-1. EDA & parameter extraction
-2. Generate 50,000 training cases
-3. Train RL agent (100 episodes)
-4. Run 2-year simulation (730 days)
-5. Generate daily cause lists
-6. Performance analysis
-7. Executive summary generation
+### Common Operations
 
-**Quick Demo** (5-10 minutes):
+**1. Run EDA Pipeline** (extract parameters from historical data):
 ```bash
-uv run python court_scheduler_rl.py quick
+uv run court-scheduler eda
 ```
 
-See [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md) for detailed instructions.
+**2. Generate Test Cases**:
+```bash
+uv run court-scheduler generate --cases 10000 --output data/cases.csv
+```
 
-### Core Operations (Advanced)
+**3. Run Simulation**:
+```bash
+uv run court-scheduler simulate --cases data/cases.csv --days 384 --policy readiness
+```
+
+**4. Train RL Agent** (optional enhancement):
+```bash
+uv run court-scheduler train --episodes 20 --output models/agent.pkl
+```
+
+**5. Full Workflow** (end-to-end):
+```bash
+uv run court-scheduler workflow --cases 10000 --days 384 --output results/
+```
+
+See [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md) for detailed submission instructions.
+
+### Advanced Usage
 
 <details>
-<summary>Click for individual component execution</summary>
+<summary>Click for configuration and customization options</summary>
 
-#### 1. Generate Training Data
+#### Using Configuration Files
+
 ```bash
-# Generate large training dataset
-uv run python scripts/generate_cases.py --start 2023-01-01 --end 2024-06-30 --n 10000 --stage-mix auto --out data/generated/large_cases.csv
+# Generate with custom config
+uv run court-scheduler generate --config configs/generate_config.toml
+
+# Simulate with custom config
+uv run court-scheduler simulate --config configs/simulate_config.toml
 ```
 
-#### 2. Run EDA Pipeline  
+#### Interactive Mode
+
 ```bash
-# Extract parameters from historical data
-uv run python src/run_eda.py
+# Prompt for all parameters
+uv run court-scheduler simulate --interactive
 ```
 
-#### 3. Train RL Agent
+#### Custom Parameters
+
 ```bash
-# Fast training (20 episodes)
-uv run python train_rl_agent.py --config configs/rl_training_fast.json
+# Training with custom hyperparameters
+uv run court-scheduler train \
+  --episodes 50 \
+  --cases 200 \
+  --lr 0.15 \
+  --epsilon 0.4 \
+  --output models/custom_agent.pkl
 
-# Intensive training (100 episodes)
-uv run python train_rl_agent.py --config configs/rl_training_intensive.json
-
-# Custom parameters
-uv run python train_rl_agent.py --episodes 50 --learning-rate 0.15 --model-name "custom_agent.pkl"
+# Simulation with specific settings
+uv run court-scheduler simulate \
+  --cases data/cases.csv \
+  --days 730 \
+  --policy readiness \
+  --seed 42 \
+  --log-dir outputs/long_run
 ```
 
-#### 4. Run Simulations
-```bash
-# Compare all policies
-uv run python scripts/compare_policies.py --cases-csv data/generated/large_cases.csv --days 90 --policies readiness rl
+#### Policy Comparison
 
-# Single policy simulation
-uv run python scripts/simulate.py --cases-csv data/generated/cases.csv --policy rl --days 60
+```bash
+# Run with different policies
+uv run court-scheduler simulate --policy fifo --log-dir outputs/fifo_run
+uv run court-scheduler simulate --policy age --log-dir outputs/age_run
+uv run court-scheduler simulate --policy readiness --log-dir outputs/readiness_run
 ```
 
 </details>
 
-### Legacy Methods (Still Supported)
+## CLI Reference
 
-<details>
-<summary>Click to see old script-based approach</summary>
+All commands follow the pattern: `uv run court-scheduler <command> [options]`
 
-#### 1. Run EDA Pipeline
-```bash
-# Extract parameters from historical data
-uv run python main.py
-```
+| Command | Description | Key Options |
+|---------|-------------|-------------|
+| `eda` | Run EDA pipeline | `--skip-clean`, `--skip-viz`, `--skip-params` |
+| `generate` | Generate test cases | `--cases`, `--start`, `--end`, `--output` |
+| `simulate` | Run simulation | `--cases`, `--days`, `--policy`, `--log-dir` |
+| `train` | Train RL agent | `--episodes`, `--lr`, `--epsilon`, `--output` |
+| `workflow` | Full pipeline | `--cases`, `--days`, `--output` |
+| `version` | Show version | - |
 
-#### 2. Generate Case Dataset
-```bash
-# Generate 10,000 synthetic cases
-uv run python -c "from scheduler.data.case_generator import CaseGenerator; from datetime import date; from pathlib import Path; gen = CaseGenerator(start=date(2022,1,1), end=date(2023,12,31), seed=42); cases = gen.generate(10000, stage_mix_auto=True); CaseGenerator.to_csv(cases, Path('data/generated/cases.csv')); print(f'Generated {len(cases)} cases')"
-```
+For detailed options: `uv run court-scheduler <command> --help`
 
-#### 3. Run Simulation
-```bash
-# 2-year simulation with ripeness classification
-uv run python scripts/simulate.py --days 384 --start 2024-01-01 --log-dir data/sim_runs/test_run
+## Recent Improvements
 
-# Quick 60-day test
-uv run python scripts/simulate.py --days 60
-```
-</details>
+### RL Training Gap Fixes
 
-## Usage
+Two critical gaps in the RL training system have been identified and fixed:
 
-1. **Run Analysis**: Execute `uv run python main.py` to generate comprehensive visualizations
-2. **Data Loading**: The system automatically loads and processes case and hearing datasets
-3. **Interactive Exploration**: Use the filter controls to explore specific subsets
-4. **Insights Generation**: Review patterns and recommendations for algorithm development
+**1. EDA Parameter Alignment**
+- **Issue**: Training environment used hardcoded probabilities (0.7, 0.6, 0.4) instead of EDA-derived parameters
+- **Fix**: Integrated ParameterLoader into RLTrainingEnvironment to use data-driven parameters
+- **Validation**: Adjournment rates now align within 1% of EDA-derived values (43.0% vs 42.3%)
+- **Impact**: Training now matches evaluation dynamics, improving policy generalization
+
+**2. Ripeness Feedback Loop**
+- **Issue**: Ripeness classification used static keyword/stage heuristics with no feedback mechanism
+- **Fix**: Created RipenessMetrics and RipenessCalibrator for dynamic threshold adjustment
+- **Components**: 
+  - `scheduler/monitoring/ripeness_metrics.py`: Tracks predictions vs outcomes, computes confusion matrix
+  - `scheduler/monitoring/ripeness_calibrator.py`: Analyzes metrics and suggests threshold adjustments
+  - Enhanced `RipenessClassifier` with `set_thresholds()` and `get_current_thresholds()` methods
+- **Impact**: Enables continuous improvement of ripeness classification accuracy based on real outcomes
+
+These fixes ensure that RL training is reproducible, aligned with evaluation conditions, and benefits from adaptive ripeness detection that learns from historical data.
 
 ## Key Insights
 

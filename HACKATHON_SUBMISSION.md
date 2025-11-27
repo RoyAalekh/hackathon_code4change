@@ -3,24 +3,37 @@
 
 ### Quick Start - Hackathon Demo
 
-#### Option 1: Interactive Mode (Recommended)
+#### Option 1: Full Workflow (Recommended)
 ```bash
-# Run with interactive prompts for all parameters
-uv run python court_scheduler_rl.py interactive
+# Run complete pipeline: generate cases + simulate
+uv run court-scheduler workflow --cases 50000 --days 730
 ```
 
-This will prompt you for:
-- Number of cases (default: 50,000)
-- Date range for case generation
-- RL training episodes and learning rate
-- Simulation duration (default: 730 days = 2 years)
-- Policies to compare (RL vs baselines)
-- Output directory and visualization options
+This executes:
+- EDA parameter extraction (if needed)
+- Case generation with realistic distributions
+- Multi-year simulation with policy comparison
+- Performance analysis and reporting
 
 #### Option 2: Quick Demo
 ```bash
 # 90-day quick demo with 10,000 cases
-uv run python court_scheduler_rl.py quick
+uv run court-scheduler workflow --cases 10000 --days 90
+```
+
+#### Option 3: Step-by-Step
+```bash
+# 1. Extract parameters from historical data
+uv run court-scheduler eda
+
+# 2. Generate synthetic cases
+uv run court-scheduler generate --cases 50000
+
+# 3. Train RL agent (optional)
+uv run court-scheduler train --episodes 100
+
+# 4. Run simulation
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy readiness
 ```
 
 ### What the Pipeline Does
@@ -128,35 +141,30 @@ Based on comprehensive testing:
 #### For Hackathon Judges
 ```bash
 # Large-scale impressive demo
-uv run python court_scheduler_rl.py interactive
+uv run court-scheduler workflow --cases 100000 --days 730
 
-# Configuration:
-# - Cases: 100,000
-# - RL Episodes: 150
-# - Simulation: 730 days
-# - All policies: readiness, rl, fifo, age
+# With all policies compared
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy readiness
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy fifo
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy age
 ```
 
 #### For Technical Evaluation
 ```bash
 # Focus on RL training quality
-uv run python court_scheduler_rl.py interactive
+uv run court-scheduler train --episodes 200 --lr 0.12 --cases 500 --output models/intensive_agent.pkl
 
-# Configuration:
-# - Cases: 50,000
-# - RL Episodes: 200 (intensive)
-# - Learning Rate: 0.12 (optimized)
-# - Generate visualizations: Yes
+# Then simulate with trained agent
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy rl --agent models/intensive_agent.pkl
 ```
 
 #### For Quick Demo/Testing
 ```bash
 # Fast proof-of-concept
-uv run python court_scheduler_rl.py quick
+uv run court-scheduler workflow --cases 10000 --days 90
 
 # Pre-configured:
 # - 10,000 cases
-# - 20 episodes
 # - 90 days simulation
 # - ~5-10 minutes runtime
 ```
@@ -208,34 +216,38 @@ uv run python court_scheduler_rl.py quick
 **Solution**: Reduce episodes to 50 or cases_per_episode to 500
 
 **Issue**: EDA parameters not found
-**Solution**: Run `uv run python src/run_eda.py` first
+**Solution**: Run `uv run court-scheduler eda` first
 
 **Issue**: Import errors
 **Solution**: Ensure UV environment is activated, run `uv sync`
 
 ### Advanced Configuration
 
-For fine-tuned control, create a JSON config file:
+For fine-tuned control, use configuration files:
 
-```json
-{
-  "n_cases": 50000,
-  "start_date": "2022-01-01",
-  "end_date": "2023-12-31",
-  "episodes": 100,
-  "learning_rate": 0.15,
-  "sim_days": 730,
-  "policies": ["readiness", "rl", "fifo", "age"],
-  "output_dir": "data/custom_run",
-  "generate_cause_lists": true,
-  "generate_visualizations": true
-}
+```bash
+# Create configs/ directory with TOML files
+# Example: configs/generate_config.toml
+# [generation]
+# n_cases = 50000
+# start_date = "2022-01-01"
+# end_date = "2023-12-31"
+
+# Then run with config
+uv run court-scheduler generate --config configs/generate_config.toml
+uv run court-scheduler simulate --config configs/simulate_config.toml
 ```
 
-Then run:
+Or use command-line options:
 ```bash
-uv run python court_scheduler_rl.py interactive
-# Load from config when prompted
+# Full customization
+uv run court-scheduler workflow \
+  --cases 50000 \
+  --days 730 \
+  --start 2022-01-01 \
+  --end 2023-12-31 \
+  --output data/custom_run \
+  --seed 42
 ```
 
 ### Contact & Support
