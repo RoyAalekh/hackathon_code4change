@@ -7,7 +7,7 @@ case prioritization policies through simulation-based rewards.
 import numpy as np
 from pathlib import Path
 from typing import List, Tuple, Dict, Optional
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import random
 
 from scheduler.data.case_generator import CaseGenerator
@@ -135,7 +135,7 @@ class RLTrainingEnvironment:
                         override_type=OverrideType.PRIORITY,
                         case_id=case.case_id,
                         judge_id="RL-JUDGE",
-                        timestamp=self.current_date,
+                        timestamp=datetime.combine(self.current_date, datetime.min.time()),
                         new_priority=case.get_priority_score() + priority_boost,
                     )
                 )
