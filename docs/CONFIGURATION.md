@@ -92,16 +92,15 @@ The codebase uses a layered configuration approach separating concerns by domain
 
 ```
 Pipeline Execution:
-├── PipelineConfig (workflow orchestration)
-│   ├── RLTrainingConfig (training hyperparameters)
-│   └── Data generation params
-│
-└── Per-Policy Simulation:
-    ├── CourtSimConfig (simulation settings)
-    │   └── rl_agent_path (from training output)
-    │
-    └── Policy instantiation:
-        └── PolicyConfig (policy-specific settings)
+|-- PipelineConfig (workflow orchestration)
+    |-- RLTrainingConfig (training hyperparameters)
+    |-- Data generation params
+
+|-- Per-Policy Simulation:
+    |-- CourtSimConfig (simulation settings)
+        |-- rl_agent_path (from training output)
+    |-- Policy instantiation:
+        |-- PolicyConfig (policy-specific settings)
 ```
 
 ## Design Principles
@@ -174,21 +173,21 @@ policy = RLPolicy(agent_path=model_path, policy_config=strict_policy)
 ## Validation Rules
 
 All config classes validate in `__post_init__`:
-- Value ranges (0 < learning_rate ≤ 1)
+- Value ranges (0 < learning_rate <= 1)
 - Type consistency (convert strings to Path)
-- Cross-parameter constraints (max_gap ≥ min_gap)
+- Cross-parameter constraints (max_gap >= min_gap)
 - Required file existence (rl_agent_path must exist)
 
 ## Anti-Patterns
 
 **DON'T**:
-- ❌ Hardcode magic numbers in algorithms
-- ❌ Use module-level mutable globals
-- ❌ Mix domain constants with tunable parameters
-- ❌ Create "god config" with everything in one class
+- Hardcode magic numbers in algorithms
+- Use module-level mutable globals
+- Mix domain constants with tunable parameters
+- Create "god config" with everything in one class
 
 **DO**:
-- ✓ Separate by lifecycle and ownership
-- ✓ Validate early (constructor time)
-- ✓ Use dataclasses for immutability
-- ✓ Provide sensible defaults with named presets
+- Separate by lifecycle and ownership
+- Validate early (constructor time)
+- Use dataclasses for immutability
+- Provide sensible defaults with named presets
