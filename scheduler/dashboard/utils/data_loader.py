@@ -30,17 +30,34 @@ def load_param_loader(params_dir: str = "configs/parameters") -> dict[str, Any]:
     """
     loader = ParameterLoader(Path(params_dir))
     
+    # Extract case types from case_type_summary DataFrame
+    case_types = loader.case_type_summary["casetype"].unique().tolist() if hasattr(loader, 'case_type_summary') else []
+    
+    # Extract stages from transition_probs DataFrame
+    stages = loader.transition_probs["STAGE_FROM"].unique().tolist() if hasattr(loader, 'transition_probs') else []
+    
+    # Build stage graph from transition probabilities
+    stage_graph = {}
+    for stage in stages:
+        transitions = loader.get_stage_transitions(stage)
+        stage_graph[stage] = transitions.to_dict('records')
+    
+    # Build adjournment stats
+    adjournment_stats = {}
+    for stage in stages:
+        adjournment_stats[stage] = {}
+        for ct in case_types:
+            try:
+                prob = loader.get_adjournment_prob(stage, ct)
+                adjournment_stats[stage][ct] = prob
+            except:
+                adjournment_stats[stage][ct] = 0.0
+    
     return {
-        "case_types": loader.get_case_types(),
-        "stages": loader.get_stages(),
-        "stage_graph": loader.get_stage_graph(),
-        "adjournment_stats": {
-            stage: {
-                ct: loader.get_adjournment_prob(stage, ct)
-                for ct in loader.get_case_types()
-            }
-            for stage in loader.get_stages()
-        },
+        "case_types": case_types,
+        "stages": stages,
+        "stage_graph": stage_graph,
+        "adjournment_stats": adjournment_stats,
     }
 
 
