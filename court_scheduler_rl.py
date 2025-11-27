@@ -213,9 +213,7 @@ class InteractivePipeline:
             rl_cfg = self.config.rl_training
             training_stats = train_agent(
                 agent=agent,
-                episodes=rl_cfg.episodes,
-                cases_per_episode=rl_cfg.cases_per_episode,
-                episode_length=rl_cfg.episode_length_days,
+                rl_config=rl_cfg,
                 verbose=False  # Disable internal printing
             )
 
@@ -244,6 +242,7 @@ class InteractivePipeline:
                     test_cases=eval_cases,
                     episodes=5,
                     episode_length=rl_cfg.episode_length_days,
+                    rl_config=rl_cfg,
                 )
                 self.output.save_evaluation_stats(evaluation_stats)
             except Exception as eval_err:
