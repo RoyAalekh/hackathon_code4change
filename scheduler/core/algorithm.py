@@ -312,9 +312,14 @@ class SchedulingAlgorithm:
         overrides = []
         
         if preferences.capacity_overrides:
+            from datetime import datetime
             for courtroom_id, new_capacity in preferences.capacity_overrides.items():
                 override = Override(
+                    override_id=f"pref-capacity-{courtroom_id}-{preferences.judge_id}",
                     override_type=OverrideType.CAPACITY,
+                    case_id="",  # Not case-specific
+                    judge_id=preferences.judge_id,
+                    timestamp=datetime.now(),
                     courtroom_id=courtroom_id,
                     new_capacity=new_capacity,
                     reason="Judge preference"
