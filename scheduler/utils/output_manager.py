@@ -6,7 +6,7 @@ No scattered files, no duplicate saves, single source of truth per run.
 
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 import json
 from dataclasses import asdict
 
@@ -30,7 +30,8 @@ class OutputManager:
             base_dir: Base directory for all outputs (default: outputs/runs)
         """
         self.run_id = run_id or f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
+        self.created_at = datetime.now().isoformat()
+
         # Base paths
         project_root = Path(__file__).parent.parent.parent
         self.base_dir = base_dir or (project_root / "outputs" / "runs")
@@ -49,6 +50,9 @@ class OutputManager:
         
         # Reports subdirectories
         self.visualizations_dir = self.reports_dir / "visualizations"
+
+        # Metadata paths
+        self.run_record_file = self.run_dir / "run_record.json"
         
     def create_structure(self):
         """Create all output directories."""
@@ -64,10 +68,18 @@ class OutputManager:
             self.visualizations_dir,
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
-    
+
+        # Initialize run record with creation metadata if missing
+        if not self.run_record_file.exists():
+            self._update_run_record("run", {
+                "run_id": self.run_id,
+                "created_at": self.created_at,
+                "base_dir": str(self.run_dir),
+            })
+
     def save_config(self, config):
         """Save pipeline configuration to run directory.
-        
+
         Args:
             config: PipelineConfig or any dataclass
         """
@@ -76,6 +88,45 @@ class OutputManager:
             # Handle nested dataclasses (like rl_training)
             config_dict = asdict(config) if hasattr(config, '__dataclass_fields__') else config
             json.dump(config_dict, f, indent=2, default=str)
+
+        self._update_run_record("config", {
+            "path": str(config_path),
+            "timestamp": datetime.now().isoformat(),
+        })
+
+    def save_training_stats(self, training_stats: Dict[str, Any]):
+        """Persist raw training statistics for auditing and dashboards."""
+
+        self.training_dir.mkdir(parents=True, exist_ok=True)
+        with open(self.training_stats_file, "w", encoding="utf-8") as f:
+            json.dump(training_stats, f, indent=2, default=str)
+
+    def save_evaluation_stats(self, evaluation_stats: Dict[str, Any]):
+        """Persist evaluation metrics for downstream analysis."""
+
+        eval_path = self.training_dir / "evaluation.json"
+        with open(eval_path, "w", encoding="utf-8") as f:
+            json.dump(evaluation_stats, f, indent=2, default=str)
+
+        self._update_run_record("evaluation", {
+            "path": str(eval_path),
+            "timestamp": datetime.now().isoformat(),
+        })
+
+    def record_training_summary(self, summary: Dict[str, Any], evaluation: Optional[Dict[str, Any]] = None):
+        """Save aggregated training/evaluation summary for dashboards."""
+
+        summary_path = self.training_dir / "summary.json"
+        payload = {
+            "summary": summary,
+            "evaluation": evaluation,
+            "updated_at": datetime.now().isoformat(),
+        }
+
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, default=str)
+
+        self._update_run_record("training", payload)
     
     def get_policy_dir(self, policy_name: str) -> Path:
         """Get simulation directory for a specific policy.
@@ -102,7 +153,37 @@ class OutputManager:
         cause_list_dir = self.get_policy_dir(policy_name) / "cause_lists"
         cause_list_dir.mkdir(parents=True, exist_ok=True)
         return cause_list_dir
-    
+
+    def record_eda_metadata(self, version: str, used_cached: bool, params_path: Path, figures_path: Path):
+        """Record EDA version/timestamp for auditability."""
+
+        payload = {
+            "version": version,
+            "timestamp": datetime.now().isoformat(),
+            "used_cached": used_cached,
+            "params_path": str(params_path),
+            "figures_path": str(figures_path),
+        }
+
+        self._update_run_record("eda", payload)
+
+    def record_simulation_kpis(self, policy: str, kpis: Dict[str, Any]):
+        """Persist simulation KPIs per policy for dashboards."""
+
+        policy_dir = self.get_policy_dir(policy)
+        metrics_path = policy_dir / "metrics.json"
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump(kpis, f, indent=2, default=str)
+
+        record = self._load_run_record()
+        simulation_section = record.get("simulation", {})
+        simulation_section[policy] = kpis
+        record["simulation"] = simulation_section
+        record["updated_at"] = datetime.now().isoformat()
+
+        with open(self.run_record_file, "w", encoding="utf-8") as f:
+            json.dump(record, f, indent=2, default=str)
+
     @property
     def training_cases_file(self) -> Path:
         """Path to generated training cases CSV."""
@@ -152,9 +233,38 @@ class OutputManager:
             # Fallback: copy file if symlinks not supported (Windows without dev mode)
             import shutil
             shutil.copy2(target, symlink_path)
-    
+
     def __str__(self) -> str:
         return f"OutputManager(run_id='{self.run_id}', run_dir='{self.run_dir}')"
-    
+
     def __repr__(self) -> str:
         return self.__str__()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _load_run_record(self) -> Dict[str, Any]:
+        """Load run record JSON, providing defaults if missing."""
+
+        if self.run_record_file.exists():
+            try:
+                with open(self.run_record_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                pass
+
+        return {
+            "run_id": self.run_id,
+            "created_at": self.created_at,
+        }
+
+    def _update_run_record(self, section: str, payload: Dict[str, Any]):
+        """Upsert a section within the consolidated run record."""
+
+        record = self._load_run_record()
+        record.setdefault("sections", {})
+        record["sections"][section] = payload
+        record["updated_at"] = datetime.now().isoformat()
+
+        with open(self.run_record_file, "w", encoding="utf-8") as f:
+            json.dump(record, f, indent=2, default=str)
