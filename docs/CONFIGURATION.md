@@ -72,31 +72,38 @@ The codebase uses a layered configuration approach separating concerns by domain
 
 **When to use**: Each simulation run (different policies, time periods, or capacities).
 
-### 5. Pipeline Configuration (`court_scheduler_rl.py`)
-**Purpose**: Orchestrating multi-step workflow execution.
+### 5. CLI Configuration (`cli/config.py`)
+**Purpose**: Command-line interface configuration management.
 
-**Class**: `PipelineConfig`
+**Functions**:
+- `load_generate_config()`: Load case generation TOML config
+- `load_simulate_config()`: Load simulation TOML config
+- `load_rl_training_config()`: Load RL training TOML config
 
-**Parameters**:
-- `n_cases`: Cases to generate for training
-- `start_date`/`end_date`: Training data time window
-- `rl_training`: RLTrainingConfig instance
-- `sim_days`: Simulation duration
-- `policies`: List of policies to compare
-- `output_dir`: Results output location
-- `generate_cause_lists`/`generate_visualizations`: Output options
+**Configuration Files** (TOML format in `configs/`):
+- `generate_config.toml`: Case generation parameters
+- `simulate_config.toml`: Simulation settings
+- `rl_training_config.toml`: Training hyperparameters
 
-**When to use**: Running complete training→simulation→analysis workflows.
+**When to use**: Customizing CLI command behavior without modifying code.
 
 ## Configuration Flow
 
 ```
-Pipeline Execution:
-|-- PipelineConfig (workflow orchestration)
-    |-- RLTrainingConfig (training hyperparameters)
-    |-- Data generation params
+CLI Execution:
+|-- CLI Commands (cli/main.py)
+    |-- Command Options (Typer-based)
+    |-- Config Files (TOML in configs/)
 
-|-- Per-Policy Simulation:
+|-- Data Generation:
+    |-- Case generation parameters
+    |-- Date ranges and distributions
+
+|-- RL Training:
+    |-- RLTrainingConfig (training hyperparameters)
+    |-- Training environment settings
+
+|-- Simulation:
     |-- CourtSimConfig (simulation settings)
         |-- rl_agent_path (from training output)
     |-- Policy instantiation:
@@ -113,16 +120,19 @@ Pipeline Execution:
 
 ## Examples
 
-### Quick Demo
+### Quick Demo (CLI)
+```bash
+# Command-line options
+uv run court-scheduler workflow --cases 10000 --days 90
+```
+
+### Quick Demo (Programmatic)
 ```python
 from rl.config import QUICK_DEMO_RL_CONFIG
+from scheduler.simulation.engine import CourtSimConfig
 
-config = PipelineConfig(
-    n_cases=10000,
-    rl_training=QUICK_DEMO_RL_CONFIG,  # 20 episodes
-    sim_days=90,
-    output_dir="data/quick_demo"
-)
+# Use preset configs directly
+rl_config = QUICK_DEMO_RL_CONFIG  # 20 episodes
 ```
 
 ### Custom Training
