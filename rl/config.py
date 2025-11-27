@@ -17,6 +17,14 @@ class RLTrainingConfig:
     episodes: int = 100
     cases_per_episode: int = 1000
     episode_length_days: int = 60
+
+    # Courtroom + allocation constraints
+    courtrooms: int = 5
+    daily_capacity_per_courtroom: int = 151
+    cap_daily_allocations: bool = True
+    max_daily_allocations: int | None = None  # Optional hard cap (overrides computed capacity)
+    enforce_min_gap: bool = True
+    apply_judge_preferences: bool = True
     
     # Q-learning hyperparameters
     learning_rate: float = 0.15
@@ -47,6 +55,19 @@ class RLTrainingConfig:
         
         if self.cases_per_episode < 1:
             raise ValueError(f"cases_per_episode must be >= 1, got {self.cases_per_episode}")
+
+        if self.courtrooms < 1:
+            raise ValueError(f"courtrooms must be >= 1, got {self.courtrooms}")
+
+        if self.daily_capacity_per_courtroom < 1:
+            raise ValueError(
+                f"daily_capacity_per_courtroom must be >= 1, got {self.daily_capacity_per_courtroom}"
+            )
+
+        if self.max_daily_allocations is not None and self.max_daily_allocations < 1:
+            raise ValueError(
+                f"max_daily_allocations must be >= 1 when provided, got {self.max_daily_allocations}"
+            )
 
 
 @dataclass
