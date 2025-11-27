@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 import random
 
 from scheduler.data.case_generator import CaseGenerator
+from scheduler.data.param_loader import ParameterLoader
 from scheduler.core.case import Case, CaseStatus
 from scheduler.core.algorithm import SchedulingAlgorithm
 from scheduler.core.courtroom import Courtroom
@@ -38,6 +39,7 @@ class RLTrainingEnvironment:
         horizon_days: int = 90,
         rl_config: RLTrainingConfig | None = None,
         policy_config: PolicyConfig | None = None,
+        params_dir: Optional[Path] = None,
     ):
         """Initialize training environment.
 
@@ -47,6 +49,7 @@ class RLTrainingEnvironment:
             horizon_days: Training episode length in days
             rl_config: RL-specific training constraints
             policy_config: Policy knobs for ripeness/gap rules
+            params_dir: Directory with EDA parameters (uses latest if None)
         """
         self.cases = cases
         self.start_date = start_date
@@ -56,6 +59,7 @@ class RLTrainingEnvironment:
         self.rl_config = rl_config or DEFAULT_RL_TRAINING_CONFIG
         self.policy_config = policy_config or DEFAULT_POLICY_CONFIG
         self.reward_helper = EpisodeRewardHelper(total_cases=len(cases))
+        self.param_loader = ParameterLoader(params_dir)
 
         # Resources mirroring production defaults
         self.courtrooms = [
@@ -193,49 +197,71 @@ class RLTrainingEnvironment:
         return self.cases, rewards, episode_done
 
     def _simulate_hearing_outcome(self, case: Case) -> str:
-        """Simulate hearing outcome based on stage and case characteristics."""
-        # Simplified outcome simulation
+        """Simulate hearing outcome using EDA-derived parameters.
+        
+        Uses param_loader for adjournment probabilities and stage transitions
+        instead of hardcoded values, ensuring training aligns with production.
+        """
         current_stage = case.current_stage
+        case_type = case.case_type
 
-        # Terminal stages - high disposal probability
+        # Query EDA-derived adjournment probability
+        p_adjourn = self.param_loader.get_adjournment_prob(current_stage, case_type)
+        
+        # Sample adjournment
+        if random.random() < p_adjourn:
+            return "ADJOURNED"
+
+        # Case progresses - determine next stage using EDA-derived transitions
+        # Terminal stages lead to disposal
         if current_stage in ["ORDERS / JUDGMENT", "FINAL DISPOSAL"]:
-            if random.random() < 0.7:  # 70% chance of disposal
-                return "FINAL DISPOSAL"
-            else:
-                return "ADJOURNED"
-
-        # Early stages more likely to adjourn
-        if current_stage in ["PRE-ADMISSION", "ADMISSION"]:
-            if random.random() < 0.6:  # 60% adjournment rate
-                return "ADJOURNED"
-            else:
-                # Progress to next logical stage
-                if current_stage == "PRE-ADMISSION":
-                    return "ADMISSION"
-                else:
-                    return "EVIDENCE"
-
-        # Mid-stages
-        if current_stage in ["EVIDENCE", "ARGUMENTS"]:
-            if random.random() < 0.4:  # 40% adjournment rate
-                return "ADJOURNED"
-            else:
-                if current_stage == "EVIDENCE":
-                    return "ARGUMENTS"
-                else:
-                    return "ORDERS / JUDGMENT"
-
-        # Default progression
-        return "ARGUMENTS"
+            return "FINAL DISPOSAL"
+        
+        # Sample next stage using cumulative transition probabilities
+        transitions = self.param_loader.get_stage_transitions_fast(current_stage)
+        if not transitions:
+            # No transition data - use fallback progression
+            return self._fallback_stage_progression(current_stage)
+        
+        # Sample from cumulative probabilities
+        rand_val = random.random()
+        for next_stage, cum_prob in transitions:
+            if rand_val <= cum_prob:
+                return next_stage
+        
+        # Fallback if sampling fails (shouldn't happen with normalized probs)
+        return transitions[-1][0] if transitions else current_stage
+    
+    def _fallback_stage_progression(self, current_stage: str) -> str:
+        """Fallback stage progression when no transition data available."""
+        progression_map = {
+            "PRE-ADMISSION": "ADMISSION",
+            "ADMISSION": "EVIDENCE",
+            "FRAMING OF CHARGES": "EVIDENCE",
+            "EVIDENCE": "ARGUMENTS",
+            "ARGUMENTS": "ORDERS / JUDGMENT",
+            "INTERLOCUTORY APPLICATION": "ARGUMENTS",
+            "SETTLEMENT": "FINAL DISPOSAL",
+        }
+        return progression_map.get(current_stage, "ARGUMENTS")
 
 
 def train_agent(
     agent: TabularQAgent,
     rl_config: RLTrainingConfig = DEFAULT_RL_TRAINING_CONFIG,
     policy_config: PolicyConfig = DEFAULT_POLICY_CONFIG,
+    params_dir: Optional[Path] = None,
     verbose: bool = True,
 ) -> Dict:
-    """Train RL agent using episodic simulation with courtroom constraints."""
+    """Train RL agent using episodic simulation with courtroom constraints.
+    
+    Args:
+        agent: TabularQAgent to train
+        rl_config: RL training configuration
+        policy_config: Policy configuration
+        params_dir: Directory with EDA parameters (uses latest if None)
+        verbose: Print training progress
+    """
     config = rl_config or DEFAULT_RL_TRAINING_CONFIG
     policy_cfg = policy_config or DEFAULT_POLICY_CONFIG
 
@@ -274,6 +300,7 @@ def train_agent(
             config.episode_length_days,
             rl_config=config,
             policy_config=policy_cfg,
+            params_dir=params_dir,
         )
 
         # Reset environment
@@ -373,8 +400,19 @@ def evaluate_agent(
     episode_length: Optional[int] = None,
     rl_config: RLTrainingConfig = DEFAULT_RL_TRAINING_CONFIG,
     policy_config: PolicyConfig = DEFAULT_POLICY_CONFIG,
+    params_dir: Optional[Path] = None,
 ) -> Dict:
-    """Evaluate trained agent performance."""
+    """Evaluate trained agent performance.
+    
+    Args:
+        agent: Trained TabularQAgent to evaluate
+        test_cases: Cases to evaluate on
+        episodes: Number of evaluation episodes (default 10)
+        episode_length: Length of each episode in days
+        rl_config: RL configuration
+        policy_config: Policy configuration
+        params_dir: Directory with EDA parameters (uses latest if None)
+    """
     # Set agent to evaluation mode (no exploration)
     original_epsilon = agent.epsilon
     agent.epsilon = 0.0
@@ -404,6 +442,7 @@ def evaluate_agent(
             eval_length,
             rl_config=config,
             policy_config=policy_cfg,
+            params_dir=params_dir,
         )
 
         episode_cases = env.reset()

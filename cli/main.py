@@ -3,7 +3,8 @@
 This module provides a single entry point for all court scheduling operations:
 - EDA pipeline execution
 - Case generation
-- Simulation runs
+- Simulation runs  
+- RL training
 - Full workflow orchestration
 """
 
@@ -16,6 +17,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
+
+from cli import __version__
 
 # Initialize Typer app and console
 app = typer.Typer(
@@ -88,13 +91,11 @@ def generate(
     try:
         from datetime import date as date_cls
         from scheduler.data.case_generator import CaseGenerator
-        from .config_loader import load_generate_config
-        from .config_models import GenerateConfig
+        from cli.config import load_generate_config, GenerateConfig
 
         # Resolve parameters: config -> interactive -> flags
         if config:
             cfg = load_generate_config(config)
-            # Note: in this first iteration, flags do not override config for generate
         else:
             if interactive:
                 n_cases = typer.prompt("Number of cases", default=n_cases)
@@ -156,13 +157,12 @@ def simulate(
         from scheduler.data.case_generator import CaseGenerator
         from scheduler.metrics.basic import gini
         from scheduler.simulation.engine import CourtSim, CourtSimConfig
-        from .config_loader import load_simulate_config
-        from .config_models import SimulateConfig
+        from cli.config import load_simulate_config, SimulateConfig
         
         # Resolve parameters: config -> interactive -> flags
         if config:
             scfg = load_simulate_config(config)
-            # CLI flags override config if provided (best-effort)
+            # CLI flags override config if provided
             scfg = scfg.model_copy(update={
                 "cases": Path(cases_csv) if cases_csv else scfg.cases,
                 "days": days if days else scfg.days,
@@ -219,96 +219,17 @@ def simulate(
             res = sim.run()
             progress.update(task, completed=True)
         
-        # Calculate additional metrics for report
-        allocator_stats = sim.allocator.get_utilization_stats()
-        disp_times = [(c.disposal_date - c.filed_date).days for c in cases 
-                      if c.disposal_date is not None and c.status == CaseStatus.DISPOSED]
-        gini_disp = gini(disp_times) if disp_times else 0.0
-        
-        # Disposal rates by case type
-        case_type_stats = {}
-        for c in cases:
-            if c.case_type not in case_type_stats:
-                case_type_stats[c.case_type] = {"total": 0, "disposed": 0}
-            case_type_stats[c.case_type]["total"] += 1
-            if c.is_disposed:
-                case_type_stats[c.case_type]["disposed"] += 1
-        
-        # Ripeness distribution
-        active_cases = [c for c in cases if not c.is_disposed]
-        ripeness_dist = {}
-        for c in active_cases:
-            status = c.ripeness_status
-            ripeness_dist[status] = ripeness_dist.get(status, 0) + 1
-        
-        # Generate report.txt if log_dir specified
-        if log_dir:
-            Path(log_dir).mkdir(parents=True, exist_ok=True)
-            report_path = Path(log_dir) / "report.txt"
-            with report_path.open("w", encoding="utf-8") as rf:
-                rf.write("=" * 80 + "\n")
-                rf.write("SIMULATION REPORT\n")
-                rf.write("=" * 80 + "\n\n")
-                
-                rf.write(f"Configuration:\n")
-                rf.write(f"  Cases: {len(cases)}\n")
-                rf.write(f"  Days simulated: {days}\n")
-                rf.write(f"  Policy: {policy}\n")
-                rf.write(f"  Horizon end: {res.end_date}\n\n")
-                
-                rf.write(f"Hearing Metrics:\n")
-                rf.write(f"  Total hearings: {res.hearings_total:,}\n")
-                rf.write(f"  Heard: {res.hearings_heard:,} ({res.hearings_heard/max(1,res.hearings_total):.1%})\n")
-                rf.write(f"  Adjourned: {res.hearings_adjourned:,} ({res.hearings_adjourned/max(1,res.hearings_total):.1%})\n\n")
-                
-                rf.write(f"Disposal Metrics:\n")
-                rf.write(f"  Cases disposed: {res.disposals:,}\n")
-                rf.write(f"  Disposal rate: {res.disposals/len(cases):.1%}\n")
-                rf.write(f"  Gini coefficient: {gini_disp:.3f}\n\n")
-                
-                rf.write(f"Disposal Rates by Case Type:\n")
-                for ct in sorted(case_type_stats.keys()):
-                    stats = case_type_stats[ct]
-                    rate = (stats["disposed"] / stats["total"] * 100) if stats["total"] > 0 else 0
-                    rf.write(f"  {ct:4s}: {stats['disposed']:4d}/{stats['total']:4d} ({rate:5.1f}%)\n")
-                rf.write("\n")
-                
-                rf.write(f"Efficiency Metrics:\n")
-                rf.write(f"  Court utilization: {res.utilization:.1%}\n")
-                rf.write(f"  Avg hearings/day: {res.hearings_total/days:.1f}\n\n")
-                
-                rf.write(f"Ripeness Impact:\n")
-                rf.write(f"  Transitions: {res.ripeness_transitions:,}\n")
-                rf.write(f"  Cases filtered (unripe): {res.unripe_filtered:,}\n")
-                if res.hearings_total + res.unripe_filtered > 0:
-                    rf.write(f"  Filter rate: {res.unripe_filtered/(res.hearings_total + res.unripe_filtered):.1%}\n")
-                rf.write("\nFinal Ripeness Distribution:\n")
-                for status in sorted(ripeness_dist.keys()):
-                    count = ripeness_dist[status]
-                    pct = (count / len(active_cases) * 100) if active_cases else 0
-                    rf.write(f"  {status}: {count} ({pct:.1f}%)\n")
-                
-                # Courtroom allocation metrics
-                if allocator_stats:
-                    rf.write("\nCourtroom Allocation:\n")
-                    rf.write(f"  Strategy: load_balanced\n")
-                    rf.write(f"  Load balance fairness (Gini): {allocator_stats['load_balance_gini']:.3f}\n")
-                    rf.write(f"  Avg daily load: {allocator_stats['avg_daily_load']:.1f} cases\n")
-                    rf.write(f"  Allocation changes: {allocator_stats['allocation_changes']:,}\n")
-                    rf.write(f"  Capacity rejections: {allocator_stats['capacity_rejections']:,}\n\n")
-                    rf.write("  Courtroom-wise totals:\n")
-                    for cid in range(1, sim.cfg.courtrooms + 1):
-                        total = allocator_stats['courtroom_totals'][cid]
-                        avg = allocator_stats['courtroom_averages'][cid]
-                        rf.write(f"    Courtroom {cid}: {total:,} cases ({avg:.1f}/day)\n")
-    
-        # Display results to console
+        # Display results
         console.print("\n[bold green]Simulation Complete![/bold green]")
         console.print(f"\nHorizon: {cfg.start} \u2192 {res.end_date} ({days} days)")
         console.print(f"\n[bold]Hearing Metrics:[/bold]")
         console.print(f"  Total: {res.hearings_total:,}")
         console.print(f"  Heard: {res.hearings_heard:,} ({res.hearings_heard/max(1,res.hearings_total):.1%})")
         console.print(f"  Adjourned: {res.hearings_adjourned:,} ({res.hearings_adjourned/max(1,res.hearings_total):.1%})")
+        
+        disp_times = [(c.disposal_date - c.filed_date).days for c in cases 
+                      if c.disposal_date is not None and c.status == CaseStatus.DISPOSED]
+        gini_disp = gini(disp_times) if disp_times else 0.0
         
         console.print(f"\n[bold]Disposal Metrics:[/bold]")
         console.print(f"  Cases disposed: {res.disposals:,} ({res.disposals/len(cases):.1%})")
@@ -320,10 +241,68 @@ def simulate(
         
         if log_dir:
             console.print(f"\n[bold cyan]Output Files:[/bold cyan]")
-            console.print(f"  - {log_dir}/report.txt (comprehensive report)")
-            console.print(f"  - {log_dir}/metrics.csv (daily metrics)")
-            console.print(f"  - {log_dir}/events.csv (event log)")
+            console.print(f"  - {log_dir}/report.txt")
+            console.print(f"  - {log_dir}/metrics.csv")
+            console.print(f"  - {log_dir}/events.csv")
             
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def train(
+    episodes: int = typer.Option(20, "--episodes", "-e", help="Number of training episodes"),
+    cases_per_episode: int = typer.Option(200, "--cases", "-n", help="Cases per episode"),
+    learning_rate: float = typer.Option(0.15, "--lr", help="Learning rate"),
+    epsilon: float = typer.Option(0.4, "--epsilon", help="Initial epsilon for exploration"),
+    output: str = typer.Option("models/rl_agent.pkl", "--output", "-o", help="Output model file"),
+    seed: int = typer.Option(42, "--seed", help="Random seed"),
+) -> None:
+    """Train RL agent for case scheduling."""
+    console.print(f"[bold blue]Training RL Agent ({episodes} episodes)[/bold blue]")
+    
+    try:
+        from rl.simple_agent import TabularQAgent
+        from rl.training import train_agent
+        from rl.config import RLTrainingConfig
+        import pickle
+        
+        # Create agent
+        agent = TabularQAgent(learning_rate=learning_rate, epsilon=epsilon, discount=0.95)
+        
+        # Configure training
+        config = RLTrainingConfig(
+            episodes=episodes,
+            cases_per_episode=cases_per_episode,
+            training_seed=seed,
+            initial_epsilon=epsilon,
+            learning_rate=learning_rate,
+        )
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"Training {episodes} episodes...", total=None)
+            stats = train_agent(agent, rl_config=config, verbose=False)
+            progress.update(task, completed=True)
+        
+        # Save model
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("wb") as f:
+            pickle.dump(agent, f)
+        
+        console.print("\n[bold green]\u2713 Training Complete![/bold green]")
+        console.print(f"\nFinal Statistics:")
+        console.print(f"  Episodes: {len(stats['episodes'])}")
+        console.print(f"  Final disposal rate: {stats['disposal_rates'][-1]:.1%}")
+        console.print(f"  States explored: {stats['states_explored'][-1]:,}")
+        console.print(f"  Q-table size: {len(agent.q_table):,}")
+        console.print(f"\nModel saved to: {output_path}")
+        
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -394,7 +373,6 @@ def workflow(
 @app.command()
 def version() -> None:
     """Show version information."""
-    from court_scheduler import __version__
     console.print(f"Court Scheduler CLI v{__version__}")
     console.print("Court Scheduling System for Karnataka High Court")
 
