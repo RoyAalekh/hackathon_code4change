@@ -1,6 +1,6 @@
 # Court Scheduling System - Performance Comparison
 
-Generated: 2025-11-26 06:00:28
+Generated: 2025-11-27 05:50:04
 
 ## Configuration
 
@@ -15,5 +15,5 @@ Generated: 2025-11-26 06:00:28
 
 | Policy | Disposals | Disposal Rate | Utilization | Avg Hearings/Day |
 |--------|-----------|---------------|-------------|------------------|
-| Readiness | 5,421 | 54.2% | 84.2% | 635.4 |
-| Rl | 5,439 | 54.4% | 83.7% | 631.9 |
+| Readiness | 5,343 | 53.4% | 78.8% | 594.7 |
+| Rl | 5,365 | 53.6% | 78.5% | 593.0 |
