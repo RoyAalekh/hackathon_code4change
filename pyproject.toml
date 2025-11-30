@@ -71,3 +71,11 @@ markers = [
     "slow: Slow-running tests (>5 seconds)"
 ]
 
+
+# Configure Poetry to skip installing the current project package during dependency installation.
+# This environment uses Poetry to resolve/install dependencies, but this project is built with Hatchling
+# and doesn't provide a top-level package matching the project name. Disabling package mode prevents
+# errors like: "No file/folder found for package code4change-analysis".
+[tool.poetry]
+package-mode = false
+
