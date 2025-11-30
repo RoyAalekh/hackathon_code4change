@@ -19,7 +19,7 @@ HEAR_FILE = DATA_DIR / "ISDMHack_Hear.csv"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
-VERSION = "v0.4.0"
+VERSION = "v1.0.0"
 RUN_TS = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 # These will be set by set_output_paths() when running from pipeline
@@ -82,6 +82,7 @@ def _get_hearings_parquet() -> Path:
         HEARINGS_CLEAN_PARQUET = _get_run_dir() / "hearings_clean.parquet"
     return HEARINGS_CLEAN_PARQUET
 
+
 # -------------------------------------------------------------------
 # Null tokens and canonicalisation
 # -------------------------------------------------------------------
@@ -105,7 +106,7 @@ def safe_write_figure(fig, filename: str) -> None:
     Args:
         fig: Plotly figure object
         filename: HTML filename (e.g., "1_case_type_distribution.html")
-    
+
     Uses CDN for Plotly.js instead of embedding to reduce file size from ~3MB to ~50KB per file.
     """
     run_dir = _get_run_dir()
@@ -113,8 +114,8 @@ def safe_write_figure(fig, filename: str) -> None:
     try:
         fig.write_html(
             str(output_path),
-            include_plotlyjs='cdn',  # Use CDN instead of embedding full library
-            config={'displayModeBar': True, 'displaylogo': False}  # Cleaner UI
+            include_plotlyjs="cdn",  # Use CDN instead of embedding full library
+            config={"displayModeBar": True, "displaylogo": False},  # Cleaner UI
         )
     except Exception as e:
         raise RuntimeError(f"Failed to write {filename} to {output_path}: {e}")
