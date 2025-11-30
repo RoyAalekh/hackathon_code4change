@@ -37,6 +37,9 @@ dev = [
     "hypothesis>=6.0",
     "mypy>=1.11"
 ]
+[tool.poetry]
+package-mode = false
+
 
 [project.scripts]
 court-scheduler = "cli.main:app"
