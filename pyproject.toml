@@ -1,82 +1,58 @@
-[project]
-name = "code4change-analysis"
-version = "0.1.0-dev.1"
-description = "Fair, transparent court scheduling optimization using graph-based modeling and multi-objective optimization"
-readme = "README.md"
-requires-python = ">=3.11"
-
-# IMPORTANT: scheduler will be installed as a proper package
-packages = ["scheduler"]
-
-dependencies = [
-    "pandas>=2.2",
-    "polars>=1.30",
-    "plotly>=6.0",
-    "openpyxl>=3.1",
-    "XlsxWriter>=3.2",
-    "pyarrow>=17.0",
-    "numpy>=2.0",
-    "networkx>=3.0",
-    "ortools>=9.8",
-    "pydantic>=2.0",
-    "typer>=0.12",
-    "simpy>=4.1",
-    "scipy>=1.14",
-    "scikit-learn>=1.5",
-    "streamlit>=1.28",
-    "altair>=5.0",
-    "duckdb>=1.4.2",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pre-commit>=3.5",
-    "ruff>=0.6",
-    "black>=24.0",
-    "pytest>=8.0",
-    "hypothesis>=6.0",
-    "mypy>=1.11"
-]
+########################################
+# REQUIRED FOR STREAMLIT CLOUD / POETRY
+########################################
 [tool.poetry]
+name = "code4change-analysis"
+version = "0.1.0"
+description = "Court scheduling simulation + analytics"
+authors = ["Aalekh Roy"]
 package-mode = false
 
 
-[project.scripts]
+########################################
+# PROJECT DEPENDENCIES
+########################################
+[tool.poetry.dependencies]
+python = ">=3.11"
+pandas = ">=2.2"
+polars = ">=1.30"
+plotly = ">=6.0"
+openpyxl = ">=3.1"
+XlsxWriter = ">=3.2"
+pyarrow = ">=17.0"
+numpy = ">=2.0"
+networkx = ">=3.0"
+ortools = ">=9.8"
+pydantic = ">=2.0"
+typer = ">=0.12"
+simpy = ">=4.1"
+scipy = ">=1.14"
+scikit-learn = ">=1.5"
+streamlit = ">=1.28"
+altair = ">=5.0"
+duckdb = ">=1.4.2"
+
+########################################
+# OPTIONAL DEV TOOLS
+########################################
+[tool.poetry.group.dev.dependencies]
+pre-commit = ">=3.5"
+ruff = ">=0.6"
+black = ">=24.0"
+pytest = ">=8.0"
+hypothesis = ">=6.0"
+mypy = ">=1.11"
+
+########################################
+# CLI ENTRY POINTS
+########################################
+[tool.poetry.scripts]
 court-scheduler = "cli.main:app"
 
+
+########################################
+# BUILD SYSTEM FOR POETRY
+########################################
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build]
-# THIS MAKES 'scheduler' A PROPER PYTHON PACKAGE
-packages = [
-    "scheduler",
-]
-
-[tool.black]
-line-length = 100
-target-version = ["py311"]
-
-[tool.ruff]
-select = ["E", "F", "I", "B", "C901", "N", "D"]
-line-length = 100
-src = [".", "scheduler"]
-
-[tool.ruff.pydocstyle]
-convention = "google"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-v --tb=short"
-markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "fairness: Fairness validation tests",
-    "performance: Performance benchmark tests",
-    "rl: Reinforcement learning tests",
-    "simulation: Simulation engine tests",
-    "edge_case: Edge case and boundary condition tests",
-    "failure: Failure scenario tests",
-    "slow: Slow-running tests (>5 seconds)"
-]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
