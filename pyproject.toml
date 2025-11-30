@@ -68,4 +68,12 @@ testpaths = ["tests"]
 addopts = "-v --tb=short"
 markers = [
     "unit: Unit tests",
-    "integration: Integrat
+    "integration: Integration tests",
+    "fairness: Fairness validation tests",
+    "performance: Performance benchmark tests",
+    "rl: Reinforcement learning tests",
+    "simulation: Simulation engine tests",
+    "edge_case: Edge case and boundary condition tests",
+    "failure: Failure scenario tests",
+    "slow: Slow-running tests (>5 seconds)"
+]
