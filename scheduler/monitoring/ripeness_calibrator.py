@@ -15,7 +15,7 @@ from scheduler.monitoring.ripeness_metrics import RipenessMetrics
 @dataclass
 class ThresholdAdjustment:
     """Suggested threshold adjustment with reasoning."""
-    
+
     threshold_name: str
     current_value: int | float
     suggested_value: int | float
@@ -25,14 +25,14 @@ class ThresholdAdjustment:
 
 class RipenessCalibrator:
     """Analyzes ripeness metrics and suggests threshold calibration."""
-    
+
     # Calibration rules thresholds
     HIGH_FALSE_POSITIVE_THRESHOLD = 0.20
     HIGH_FALSE_NEGATIVE_THRESHOLD = 0.15
     LOW_UNKNOWN_THRESHOLD = 0.05
     LOW_RIPE_PRECISION_THRESHOLD = 0.70
     LOW_UNRIPE_RECALL_THRESHOLD = 0.60
-    
+
     @classmethod
     def analyze_metrics(
         cls,
@@ -40,17 +40,17 @@ class RipenessCalibrator:
         current_thresholds: Optional[dict[str, int | float]] = None,
     ) -> list[ThresholdAdjustment]:
         """Analyze metrics and suggest threshold adjustments.
-        
+
         Args:
             metrics: RipenessMetrics with classification history
             current_thresholds: Current threshold values (optional)
-        
+
         Returns:
             List of suggested adjustments with reasoning
         """
         accuracy = metrics.get_accuracy_metrics()
         adjustments: list[ThresholdAdjustment] = []
-        
+
         # Default current thresholds if not provided
         if current_thresholds is None:
             from scheduler.core.ripeness import RipenessClassifier
@@ -59,13 +59,13 @@ class RipenessCalibrator:
                 "MIN_STAGE_DAYS": RipenessClassifier.MIN_STAGE_DAYS,
                 "MIN_CASE_AGE_DAYS": RipenessClassifier.MIN_CASE_AGE_DAYS,
             }
-        
+
         # Check if we have enough data
         if accuracy["completed_predictions"] < 50:
             print("Warning: Insufficient data for calibration (need at least 50 predictions)")
             return adjustments
-        
-        # Rule 1: High false positive rate → increase MIN_SERVICE_HEARINGS
+
+        # Rule 1: High false positive rate -> increase MIN_SERVICE_HEARINGS
         if accuracy["false_positive_rate"] > cls.HIGH_FALSE_POSITIVE_THRESHOLD:
             current_hearings = current_thresholds.get("MIN_SERVICE_HEARINGS", 1)
             suggested_hearings = current_hearings + 1
@@ -80,8 +80,8 @@ class RipenessCalibrator:
                 ),
                 confidence="high",
             ))
-        
-        # Rule 2: High false negative rate → decrease MIN_STAGE_DAYS
+
+        # Rule 2: High false negative rate -> decrease MIN_STAGE_DAYS
         if accuracy["false_negative_rate"] > cls.HIGH_FALSE_NEGATIVE_THRESHOLD:
             current_days = current_thresholds.get("MIN_STAGE_DAYS", 7)
             suggested_days = max(3, current_days - 2)  # Don't go below 3 days
@@ -96,8 +96,8 @@ class RipenessCalibrator:
                 ),
                 confidence="medium",
             ))
-        
-        # Rule 3: Low UNKNOWN rate → system too confident, add uncertainty
+
+        # Rule 3: Low UNKNOWN rate -> system too confident, add uncertainty
         if accuracy["unknown_rate"] < cls.LOW_UNKNOWN_THRESHOLD:
             current_age = current_thresholds.get("MIN_CASE_AGE_DAYS", 14)
             suggested_age = current_age + 7
@@ -112,8 +112,8 @@ class RipenessCalibrator:
                 ),
                 confidence="medium",
             ))
-        
-        # Rule 4: Low RIPE precision → more conservative RIPE classification
+
+        # Rule 4: Low RIPE precision -> more conservative RIPE classification
         if accuracy["ripe_precision"] < cls.LOW_RIPE_PRECISION_THRESHOLD:
             current_hearings = current_thresholds.get("MIN_SERVICE_HEARINGS", 1)
             suggested_hearings = current_hearings + 1
@@ -128,8 +128,8 @@ class RipenessCalibrator:
                 ),
                 confidence="high",
             ))
-        
-        # Rule 5: Low UNRIPE recall → missing bottlenecks
+
+        # Rule 5: Low UNRIPE recall -> missing bottlenecks
         if accuracy["unripe_recall"] < cls.LOW_UNRIPE_RECALL_THRESHOLD:
             current_days = current_thresholds.get("MIN_STAGE_DAYS", 7)
             suggested_days = current_days + 3
@@ -144,19 +144,19 @@ class RipenessCalibrator:
                 ),
                 confidence="medium",
             ))
-        
+
         # Deduplicate adjustments (same threshold suggested multiple times)
         deduplicated = cls._deduplicate_adjustments(adjustments)
-        
+
         return deduplicated
-    
+
     @classmethod
     def _deduplicate_adjustments(
         cls, adjustments: list[ThresholdAdjustment]
     ) -> list[ThresholdAdjustment]:
         """Deduplicate adjustments for same threshold, prefer high confidence."""
         threshold_map: dict[str, ThresholdAdjustment] = {}
-        
+
         for adj in adjustments:
             if adj.threshold_name not in threshold_map:
                 threshold_map[adj.threshold_name] = adj
@@ -164,7 +164,7 @@ class RipenessCalibrator:
                 # Keep adjustment with higher confidence or larger change
                 existing = threshold_map[adj.threshold_name]
                 confidence_order = {"high": 3, "medium": 2, "low": 1}
-                
+
                 if confidence_order[adj.confidence] > confidence_order[existing.confidence]:
                     threshold_map[adj.threshold_name] = adj
                 elif confidence_order[adj.confidence] == confidence_order[existing.confidence]:
@@ -173,9 +173,9 @@ class RipenessCalibrator:
                     new_delta = abs(adj.suggested_value - adj.current_value)
                     if new_delta > existing_delta:
                         threshold_map[adj.threshold_name] = adj
-        
+
         return list(threshold_map.values())
-    
+
     @classmethod
     def generate_calibration_report(
         cls,
@@ -184,17 +184,17 @@ class RipenessCalibrator:
         output_path: str | None = None,
     ) -> str:
         """Generate human-readable calibration report.
-        
+
         Args:
             metrics: RipenessMetrics with classification history
             adjustments: List of suggested adjustments
             output_path: Optional file path to save report
-        
+
         Returns:
             Report text
         """
         accuracy = metrics.get_accuracy_metrics()
-        
+
         lines = [
             "Ripeness Classifier Calibration Report",
             "=" * 70,
@@ -209,7 +209,7 @@ class RipenessCalibrator:
             f"  UNRIPE recall: {accuracy['unripe_recall']:.1%}",
             "",
         ]
-        
+
         if not adjustments:
             lines.extend([
                 "Recommended Adjustments:",
@@ -222,7 +222,7 @@ class RipenessCalibrator:
                 "Recommended Adjustments:",
                 "",
             ])
-            
+
             for i, adj in enumerate(adjustments, 1):
                 lines.extend([
                     f"{i}. {adj.threshold_name}",
@@ -232,7 +232,7 @@ class RipenessCalibrator:
                     f"   Reason: {adj.reason}",
                     "",
                 ])
-            
+
             lines.extend([
                 "Implementation:",
                 "  1. Review suggested adjustments",
@@ -241,16 +241,16 @@ class RipenessCalibrator:
                 "  4. Compare new metrics with baseline",
                 "",
             ])
-        
+
         report = "\n".join(lines)
-        
+
         if output_path:
             with open(output_path, "w") as f:
                 f.write(report)
             print(f"Calibration report saved to {output_path}")
-        
+
         return report
-    
+
     @classmethod
     def apply_adjustments(
         cls,
@@ -258,22 +258,22 @@ class RipenessCalibrator:
         auto_apply: bool = False,
     ) -> dict[str, int | float]:
         """Apply threshold adjustments to RipenessClassifier.
-        
+
         Args:
             adjustments: List of adjustments to apply
             auto_apply: If True, apply immediately; if False, return dict only
-        
+
         Returns:
             Dictionary of new threshold values
         """
         new_thresholds: dict[str, int | float] = {}
-        
+
         for adj in adjustments:
             new_thresholds[adj.threshold_name] = adj.suggested_value
-        
+
         if auto_apply:
             from scheduler.core.ripeness import RipenessClassifier
             RipenessClassifier.set_thresholds(new_thresholds)
             print(f"Applied {len(adjustments)} threshold adjustments")
-        
+
         return new_thresholds

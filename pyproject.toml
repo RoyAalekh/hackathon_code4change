@@ -51,7 +51,7 @@ target-version = ["py311"]
 [tool.ruff]
 select = ["E", "F", "I", "B", "C901", "N", "D"]
 line-length = 100
-src = ["src"]
+src = [".", "scheduler"]
 
 [tool.ruff.pydocstyle]
 convention = "google"
@@ -63,5 +63,11 @@ markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "fairness: Fairness validation tests",
-    "performance: Performance benchmark tests"
+    "performance: Performance benchmark tests",
+    "rl: Reinforcement learning tests",
+    "simulation: Simulation engine tests",
+    "edge_case: Edge case and boundary condition tests",
+    "failure: Failure scenario tests",
+    "slow: Slow-running tests (>5 seconds)"
 ]
+

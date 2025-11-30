@@ -8,7 +8,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -72,7 +72,6 @@ def get_latest_params_dir(
         FileNotFoundError: When parameters cannot be located or generated.
         RuntimeError: When regeneration is attempted but fails.
     """
-
     if prefer_defaults and allow_defaults and DEFAULT_PARAMS_DIR.exists():
         print(
             "Using bundled baseline parameters from scheduler/data/defaults (preferred).",
