@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.tmp
+.venv
+.env
+.git
+.gitignore
+Data
+outputs
+reports/*.pdf
+configs/*.secrets.*
+uv.lock
+code4change_analysis.egg-info
