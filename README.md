@@ -75,9 +75,31 @@ This project delivers a **comprehensive** court scheduling system featuring:
 
 ## Quick Start
 
-### Unified CLI (Recommended)
+### Interactive Dashboard (Primary Interface)
 
-All operations now use a single entry point:
+**For submission/demo, use the dashboard - it's fully self-contained:**
+
+```bash
+# Launch dashboard
+uv run streamlit run scheduler/dashboard/app.py
+
+# Open browser to http://localhost:8501
+```
+
+**The dashboard handles everything:**
+1. Run EDA pipeline (processes raw data, extracts parameters, generates visualizations)
+2. Explore historical data and parameters
+3. Test ripeness classification
+4. Generate cases and run simulations
+5. Review cause lists with judge override capability
+6. Train RL models
+7. Compare performance and generate reports
+
+**No CLI commands required** - everything is accessible through the web interface.
+
+### Alternative: Command Line Interface
+
+For automation or scripting, all operations available via CLI:
 
 ```bash
 # See all available commands
@@ -282,17 +304,10 @@ These fixes ensure that RL training is reproducible, aligned with evaluation con
 
 ## Documentation
 
-### Hackathon & Presentation
-- `HACKATHON_SUBMISSION.md` - Complete hackathon submission guide
-- `court_scheduler_rl.py` - Interactive CLI for full pipeline
+**Primary**: This README (complete user guide)  
+**Additional**: `docs/` folder contains:
+- `DASHBOARD.md` - Dashboard usage and architecture
+- `CONFIGURATION.md` - Configuration system reference
+- `HACKATHON_SUBMISSION.md` - Hackathon-specific submission guide
 
-### Technical Documentation
-- `COMPREHENSIVE_ANALYSIS.md` - EDA findings and insights
-- `RIPENESS_VALIDATION.md` - Ripeness system validation results
-- `PIPELINE.md` - Complete development and deployment pipeline
-- `rl/README.md` - Reinforcement learning module documentation
-
-### Outputs & Configuration
-- `reports/figures/` - Parameter visualizations
-- `data/sim_runs/` - Simulation outputs and metrics
-- `configs/` - RL training configurations and profiles
+**Scripts**: See `scripts/README.md` for analysis utilities

@@ -10,11 +10,10 @@ Types:
 """
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-import csv
-from typing import Dict, Any, Iterable
 
 
 @dataclass

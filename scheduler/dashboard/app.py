@@ -16,28 +16,32 @@ from scheduler.dashboard.utils import get_data_status
 # Page configuration
 st.set_page_config(
     page_title="Court Scheduling System Dashboard",
-    page_icon="⚖️",
+    page_icon="scales",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # Main page content
-st.title("⚖️ Court Scheduling System Dashboard")
-st.markdown("**Karnataka High Court - Fair & Transparent Scheduling**")
+st.title("Court Scheduling System Dashboard")
+st.markdown("**Karnataka High Court - Algorithmic Decision Support for Fair Scheduling**")
 
 st.markdown("---")
 
 # Introduction
 st.markdown("""
-### Welcome to the Interactive Dashboard
+### Overview
 
-This dashboard provides comprehensive insights and controls for the Court Scheduling System:
+This system provides data-driven scheduling recommendations while maintaining judicial control and autonomy.
 
-- **EDA Analysis**: Explore case data, stage transitions, and adjournment patterns
-- **Ripeness Classifier**: Understand and tune the case readiness algorithm with full explainability
-- **RL Training**: Train and visualize reinforcement learning agents for optimal scheduling
+**Key Capabilities:**
+- Historical data analysis and pattern identification
+- Case ripeness classification (identifying bottlenecks)
+- Multi-courtroom scheduling simulation
+- Algorithmic suggestions with full explainability
+- Judge override and approval system
+- Reinforcement learning optimization
 
-Navigate using the sidebar to access different sections.
+Use the sidebar to navigate between sections.
 """)
 
 # System status
@@ -45,158 +49,146 @@ status_header_col1, status_header_col2 = st.columns([3, 1])
 with status_header_col1:
     st.markdown("### System Status")
 with status_header_col2:
-    if st.button("🔄 Refresh Status", use_container_width=True):
+    if st.button("Refresh Status", use_container_width=True):
         st.rerun()
 
 data_status = get_data_status()
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    status = "✓" if data_status["cleaned_data"] else "✗"
+    status = "Ready" if data_status["cleaned_data"] else "Missing"
     color = "green" if data_status["cleaned_data"] else "red"
     st.markdown(f":{color}[{status}] **Cleaned Data**")
-    
+    if not data_status["cleaned_data"]:
+        st.caption("Run EDA pipeline to process raw data")
+
 with col2:
-    status = "✓" if data_status["parameters"] else "✗"
+    status = "Ready" if data_status["parameters"] else "Missing"
     color = "green" if data_status["parameters"] else "red"
     st.markdown(f":{color}[{status}] **Parameters**")
-    
+    if not data_status["parameters"]:
+        st.caption("Run EDA pipeline to extract parameters")
+
 with col3:
-    status = "✓" if data_status["generated_cases"] else "✗"
-    color = "green" if data_status["generated_cases"] else "red"
-    st.markdown(f":{color}[{status}] **Test Cases**")
-    
-with col4:
-    status = "✓" if data_status["eda_figures"] else "✗"
+    status = "Ready" if data_status["eda_figures"] else "Missing"
     color = "green" if data_status["eda_figures"] else "red"
-    st.markdown(f":{color}[{status}] **EDA Figures**")
+    st.markdown(f":{color}[{status}] **Analysis Figures**")
+    if not data_status["eda_figures"]:
+        st.caption("Run EDA pipeline to generate visualizations")
 
 # Setup Controls
-if not all(data_status.values()):
-    st.markdown("---")
-    st.markdown("### Setup Required")
-    st.info("Some prerequisites are missing. Use the controls below to set up the system.")
-    
-    setup_col1, setup_col2 = st.columns(2)
-    
-    with setup_col1:
-        st.markdown("#### EDA Pipeline")
-        if not data_status["cleaned_data"] or not data_status["parameters"]:
-            st.warning("EDA pipeline needs to be run to generate cleaned data and parameters")
-            
-            if st.button("Run EDA Pipeline", type="primary", use_container_width=True):
-                import subprocess
-                
-                with st.spinner("Running EDA pipeline... This may take a few minutes."):
-                    try:
-                        result = subprocess.run(
-                            ["uv", "run", "court-scheduler", "eda"],
-                            capture_output=True,
-                            text=True,
-                            cwd=str(Path.cwd()),
-                        )
-                        
-                        if result.returncode == 0:
-                            st.success("EDA pipeline completed successfully!")
-                            st.rerun()
-                        else:
-                            st.error(f"EDA pipeline failed with error code {result.returncode}")
-                            with st.expander("Show error details"):
-                                st.code(result.stderr, language="text")
-                    except Exception as e:
-                        st.error(f"Error running EDA pipeline: {e}")
-        else:
-            st.success("EDA pipeline already complete")
-    
-    with setup_col2:
-        st.markdown("#### Test Case Generation")
-        if not data_status["generated_cases"]:
-            st.info("Optional: Generate synthetic test cases for classifier testing")
-            
-            n_cases = st.number_input("Number of cases to generate", min_value=100, max_value=50000, value=1000, step=100)
-            
-            if st.button("Generate Test Cases", use_container_width=True):
-                import subprocess
-                
-                with st.spinner(f"Generating {n_cases} test cases..."):
-                    try:
-                        result = subprocess.run(
-                            ["uv", "run", "court-scheduler", "generate", "--cases", str(n_cases)],
-                            capture_output=True,
-                            text=True,
-                            cwd=str(Path.cwd()),
-                        )
-                        
-                        if result.returncode == 0:
-                            st.success(f"Generated {n_cases} test cases successfully!")
-                            st.rerun()
-                        else:
-                            st.error(f"Generation failed with error code {result.returncode}")
-                            with st.expander("Show error details"):
-                                st.code(result.stderr, language="text")
-                    except Exception as e:
-                        st.error(f"Error generating test cases: {e}")
-        else:
-            st.success("Test cases already generated")
-    
-    st.markdown("#### Manual Setup")
-    with st.expander("Run commands manually (if buttons don't work)"):
-        st.code("""
-# Run EDA pipeline
-uv run court-scheduler eda
+eda_ready = data_status["cleaned_data"] and data_status["parameters"] and data_status["eda_figures"]
 
-# Generate test cases (optional)
-uv run court-scheduler generate --cases 1000
-        """, language="bash")
+if not eda_ready:
+    st.markdown("---")
+    st.markdown("### Initial Setup")
+    st.warning("Run the EDA pipeline to process historical data and extract parameters.")
+
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.markdown("""
+        The EDA pipeline:
+        - Loads and cleans historical court case data
+        - Extracts statistical parameters (distributions, transition probabilities)
+        - Generates analysis visualizations
+
+        This is required before using other dashboard features.
+        """)
+
+    with col2:
+        if st.button("Run EDA Pipeline", type="primary", use_container_width=True):
+            import subprocess
+
+            with st.spinner("Running EDA pipeline... This may take a few minutes."):
+                try:
+                    result = subprocess.run(
+                        ["uv", "run", "court-scheduler", "eda"],
+                        capture_output=True,
+                        text=True,
+                        cwd=str(Path.cwd()),
+                    )
+
+                    if result.returncode == 0:
+                        st.success("EDA pipeline completed")
+                        st.rerun()
+                    else:
+                        st.error(f"Pipeline failed with error code {result.returncode}")
+                        with st.expander("Show error details"):
+                            st.code(result.stderr, language="text")
+                except Exception as e:
+                    st.error(f"Error running pipeline: {e}")
+
+    with st.expander("Run manually via CLI"):
+        st.code("uv run court-scheduler eda", language="bash")
 else:
-    st.success("All prerequisites are ready! You can use all dashboard features.")
+    st.success("System ready - all data processed")
 
 st.markdown("---")
 
-# Quick start guide
-st.markdown("### Quick Start")
+# Navigation Guide
+st.markdown("### Dashboard Sections")
 
-with st.expander("How to use this dashboard"):
+col1, col2 = st.columns(2)
+
+with col1:
     st.markdown("""
-    **1. EDA Analysis**
-    - View statistical insights from court case data
-    - Explore case distributions, stage transitions, and patterns
-    - Filter by case type, stage, and date range
-    
-    **2. Ripeness Classifier**
-    - Understand how cases are classified as RIPE/UNRIPE/UNKNOWN
-    - Adjust thresholds interactively and see real-time impact
-    - View case-level explainability with detailed reasoning
-    - Run calibration analysis to optimize thresholds
-    
-    **3. RL Training**
-    - Configure and train reinforcement learning agents
-    - Monitor training progress in real-time
-    - Compare different models and hyperparameters
-    - Visualize Q-table and action distributions
+    #### 1. Data & Insights
+    Explore historical case data, view analysis visualizations, and review extracted parameters.
+
+    #### 2. Ripeness Classifier
+    Test case ripeness classification with interactive threshold tuning and explainability.
+
+    #### 3. Simulation Workflow
+    Generate cases, configure simulation parameters, run scheduling simulations, and view results.
     """)
 
-with st.expander("Prerequisites & Setup"):
+with col2:
     st.markdown("""
-    The dashboard requires some initial setup:
-    
-    1. **EDA Pipeline**: Processes raw data and extracts parameters
-    2. **Test Cases** (optional): Generates synthetic cases for testing
-    
-    **How to set up**:
-    - Use the interactive buttons in the "Setup Required" section above (if shown)
-    - Or run commands manually:
-      - `uv run court-scheduler eda`
-      - `uv run court-scheduler generate` (optional)
-    
-    The system status indicators at the top show what's ready.
+    #### 4. Cause Lists & Overrides
+    View generated cause lists, make judge overrides, and track modification history.
+
+    #### 5. RL Training
+    Train reinforcement learning models for optimized scheduling policies.
+
+    #### 6. Analytics & Reports
+    Compare simulation runs, analyze performance metrics, and export comprehensive reports.
+    """)
+
+st.markdown("---")
+
+# Typical Workflow
+with st.expander("Typical Usage Workflow"):
+    st.markdown("""
+    **Step 1: Initial Setup**
+    - Run EDA pipeline to process historical data (one-time setup)
+
+    **Step 2: Understand the Data**
+    - Explore Data & Insights to understand case patterns
+    - Review extracted parameters and distributions
+
+    **Step 3: Test Ripeness Classifier**
+    - Adjust thresholds for your court's specific needs
+    - Test classification on sample cases
+
+    **Step 4: Run Simulation**
+    - Go to Simulation Workflow
+    - Generate or upload case dataset
+    - Configure simulation parameters
+    - Run simulation and review results
+
+    **Step 5: Review & Override**
+    - View generated cause lists in Cause Lists & Overrides
+    - Make judicial overrides as needed
+    - Approve final cause lists
+
+    **Step 6: Analyze Performance**
+    - Use Analytics & Reports to evaluate fairness and efficiency
+    - Compare different scheduling policies
+    - Identify bottlenecks and improvement opportunities
     """)
 
 # Footer
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center'>
-    <small>Court Scheduling System | Code4Change Hackathon | Karnataka High Court</small>
-</div>
-""", unsafe_allow_html=True)
+st.caption("Court Scheduling System - Code4Change Hackathon - Karnataka High Court")

@@ -5,12 +5,10 @@ them available to the scheduler.
 """
 
 import json
-import math
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 import pandas as pd
-import polars as pl
 
 from scheduler.data.config import get_latest_params_dir
 
@@ -21,15 +19,15 @@ class ParameterLoader:
     Performance notes:
     - Builds in-memory lookup caches to avoid repeated DataFrame filtering.
     """
-    
+
     def __init__(self, params_dir: Optional[Path] = None):
         """Initialize parameter loader.
-        
+
         Args:
             params_dir: Directory containing parameter files. If None, uses latest.
         """
         self.params_dir = params_dir or get_latest_params_dir()
-        
+
         # Cached parameters
         self._transition_probs: Optional[pd.DataFrame] = None
         self._stage_duration: Optional[pd.DataFrame] = None
@@ -41,11 +39,11 @@ class ParameterLoader:
         self._duration_map: Optional[Dict[str, Dict[str, float]]] = None  # stage -> {"median": x, "p90": y}
         self._transitions_map: Optional[Dict[str, List[tuple]]] = None     # stage_from -> [(stage_to, cum_p), ...]
         self._adj_map: Optional[Dict[str, Dict[str, float]]] = None        # stage -> {case_type: p_adj}
-        
+
     @property
     def transition_probs(self) -> pd.DataFrame:
         """Stage transition probabilities.
-        
+
         Returns:
             DataFrame with columns: STAGE_FROM, STAGE_TO, N, row_n, p
         """
@@ -53,25 +51,25 @@ class ParameterLoader:
             file_path = self.params_dir / "stage_transition_probs.csv"
             self._transition_probs = pd.read_csv(file_path)
         return self._transition_probs
-    
+
     def get_transition_prob(self, stage_from: str, stage_to: str) -> float:
         """Get probability of transitioning from one stage to another.
-        
+
         Args:
             stage_from: Current stage
             stage_to: Next stage
-            
+
         Returns:
             Transition probability (0-1)
         """
         df = self.transition_probs
         match = df[(df["STAGE_FROM"] == stage_from) & (df["STAGE_TO"] == stage_to)]
-        
+
         if len(match) == 0:
             return 0.0
-        
+
         return float(match.iloc[0]["p"])
-    
+
     def _build_transitions_map(self) -> None:
         if self._transitions_map is not None:
             return
@@ -92,10 +90,10 @@ class ParameterLoader:
 
     def get_stage_transitions(self, stage_from: str) -> pd.DataFrame:
         """Get all possible transitions from a given stage.
-        
+
         Args:
             stage_from: Current stage
-            
+
         Returns:
             DataFrame with STAGE_TO and p columns
         """
@@ -108,11 +106,11 @@ class ParameterLoader:
         if not self._transitions_map:
             return []
         return self._transitions_map.get(stage_from, [])
-    
+
     @property
     def stage_duration(self) -> pd.DataFrame:
         """Stage duration statistics.
-        
+
         Returns:
             DataFrame with columns: STAGE, RUN_MEDIAN_DAYS, RUN_P90_DAYS,
                                    HEARINGS_PER_RUN_MED, N_RUNS
@@ -121,7 +119,7 @@ class ParameterLoader:
             file_path = self.params_dir / "stage_duration.csv"
             self._stage_duration = pd.read_csv(file_path)
         return self._stage_duration
-    
+
     def _build_duration_map(self) -> None:
         if self._duration_map is not None:
             return
@@ -135,11 +133,11 @@ class ParameterLoader:
 
     def get_stage_duration(self, stage: str, percentile: str = "median") -> float:
         """Get typical duration for a stage.
-        
+
         Args:
             stage: Stage name
             percentile: 'median' or 'p90'
-            
+
         Returns:
             Duration in days
         """
@@ -148,11 +146,11 @@ class ParameterLoader:
             return 30.0
         p = "median" if percentile == "median" else "p90"
         return float(self._duration_map[stage].get(p, 30.0))
-    
+
     @property
     def court_capacity(self) -> Dict:
         """Court capacity metrics.
-        
+
         Returns:
             Dict with keys: slots_median_global, slots_p90_global
         """
@@ -161,21 +159,21 @@ class ParameterLoader:
             with open(file_path, "r") as f:
                 self._court_capacity = json.load(f)
         return self._court_capacity
-    
+
     @property
     def daily_capacity_median(self) -> int:
         """Median daily capacity per courtroom."""
         return int(self.court_capacity["slots_median_global"])
-    
+
     @property
     def daily_capacity_p90(self) -> int:
         """90th percentile daily capacity per courtroom."""
         return int(self.court_capacity["slots_p90_global"])
-    
+
     @property
     def adjournment_proxies(self) -> pd.DataFrame:
         """Adjournment probabilities by stage and case type.
-        
+
         Returns:
             DataFrame with columns: Remappedstages, casetype,
                                    p_adjourn_proxy, p_not_reached_proxy, n
@@ -184,7 +182,7 @@ class ParameterLoader:
             file_path = self.params_dir / "adjournment_proxies.csv"
             self._adjournment_proxies = pd.read_csv(file_path)
         return self._adjournment_proxies
-    
+
     def _build_adj_map(self) -> None:
         if self._adj_map is not None:
             return
@@ -198,11 +196,11 @@ class ParameterLoader:
 
     def get_adjournment_prob(self, stage: str, case_type: str) -> float:
         """Get probability of adjournment for given stage and case type.
-        
+
         Args:
             stage: Stage name
             case_type: Case type (e.g., 'RSA', 'CRP')
-            
+
         Returns:
             Adjournment probability (0-1)
         """
@@ -216,11 +214,11 @@ class ParameterLoader:
             vals = list(self._adj_map[stage].values())
             return float(sum(vals) / len(vals))
         return 0.4
-    
+
     @property
     def case_type_summary(self) -> pd.DataFrame:
         """Summary statistics by case type.
-        
+
         Returns:
             DataFrame with columns: CASE_TYPE, n_cases, disp_median,
                                    disp_p90, hear_median, gap_median
@@ -229,28 +227,28 @@ class ParameterLoader:
             file_path = self.params_dir / "case_type_summary.csv"
             self._case_type_summary = pd.read_csv(file_path)
         return self._case_type_summary
-    
+
     def get_case_type_stats(self, case_type: str) -> Dict:
         """Get statistics for a specific case type.
-        
+
         Args:
             case_type: Case type (e.g., 'RSA', 'CRP')
-            
+
         Returns:
             Dict with disp_median, disp_p90, hear_median, gap_median
         """
         df = self.case_type_summary
         match = df[df["CASE_TYPE"] == case_type]
-        
+
         if len(match) == 0:
             raise ValueError(f"Unknown case type: {case_type}")
-        
+
         return match.iloc[0].to_dict()
-    
+
     @property
     def transition_entropy(self) -> pd.DataFrame:
         """Stage transition entropy (predictability metric).
-        
+
         Returns:
             DataFrame with columns: STAGE_FROM, entropy
         """
@@ -258,28 +256,28 @@ class ParameterLoader:
             file_path = self.params_dir / "stage_transition_entropy.csv"
             self._transition_entropy = pd.read_csv(file_path)
         return self._transition_entropy
-    
+
     def get_stage_predictability(self, stage: str) -> float:
         """Get predictability of transitions from a stage (inverse of entropy).
-        
+
         Args:
             stage: Stage name
-            
+
         Returns:
             Predictability score (0-1, higher = more predictable)
         """
         df = self.transition_entropy
         match = df[df["STAGE_FROM"] == stage]
-        
+
         if len(match) == 0:
             return 0.5  # Default: medium predictability
-        
+
         entropy = float(match.iloc[0]["entropy"])
         # Convert entropy to predictability (lower entropy = higher predictability)
         # Max entropy ~1.4, so normalize
         predictability = max(0.0, 1.0 - (entropy / 1.5))
         return predictability
-    
+
     def get_stage_stationary_distribution(self) -> Dict[str, float]:
         """Approximate stationary distribution over stages from transition matrix.
         Returns stage -> probability summing to 1.0.
@@ -295,7 +293,8 @@ class ParameterLoader:
         # build dense row-stochastic matrix
         P = [[0.0]*n for _ in range(n)]
         for _, row in df.iterrows():
-            i = idx[str(row["STAGE_FROM"])]; j = idx[str(row["STAGE_TO"])]
+            i = idx[str(row["STAGE_FROM"])]
+            j = idx[str(row["STAGE_TO"])]
             P[i][j] += float(row["p"])
         # ensure rows sum to 1 by topping up self-loop
         for i in range(n):
@@ -333,10 +332,10 @@ class ParameterLoader:
 # Convenience function for quick access
 def load_parameters(params_dir: Optional[Path] = None) -> ParameterLoader:
     """Load parameters from EDA outputs.
-    
+
     Args:
         params_dir: Directory containing parameter files. If None, uses latest.
-        
+
     Returns:
         ParameterLoader instance
     """

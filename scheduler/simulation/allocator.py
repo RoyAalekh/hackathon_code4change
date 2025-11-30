@@ -1,5 +1,4 @@
-"""
-Dynamic courtroom allocation system.
+"""Dynamic courtroom allocation system.
 
 Allocates cases across multiple courtrooms using configurable strategies:
 - LOAD_BALANCED: Distributes cases evenly across courtrooms
@@ -53,8 +52,7 @@ class CourtroomState:
 
 
 class CourtroomAllocator:
-    """
-    Dynamically allocates cases to courtrooms using load balancing.
+    """Dynamically allocates cases to courtrooms using load balancing.
 
     Ensures fair distribution of workload across courtrooms while respecting
     capacity constraints. Future versions may add judge specialization matching
@@ -67,8 +65,7 @@ class CourtroomAllocator:
         per_courtroom_capacity: int = 10,
         strategy: AllocationStrategy = AllocationStrategy.LOAD_BALANCED,
     ):
-        """
-        Initialize allocator.
+        """Initialize allocator.
 
         Args:
             num_courtrooms: Number of courtrooms to allocate across
@@ -80,9 +77,7 @@ class CourtroomAllocator:
         self.strategy = strategy
 
         # Initialize courtroom states
-        self.courtrooms = {
-            i: CourtroomState(courtroom_id=i) for i in range(1, num_courtrooms + 1)
-        }
+        self.courtrooms = {i: CourtroomState(courtroom_id=i) for i in range(1, num_courtrooms + 1)}
 
         # Metrics tracking
         self.daily_loads: dict[date, dict[int, int]] = {}  # date -> {courtroom_id -> load}
@@ -90,8 +85,7 @@ class CourtroomAllocator:
         self.capacity_rejections: int = 0  # Cases that couldn't be allocated
 
     def allocate(self, cases: list[Case], current_date: date) -> dict[str, int]:
-        """
-        Allocate cases to courtrooms for a given date.
+        """Allocate cases to courtrooms for a given date.
 
         Args:
             cases: List of cases to allocate (already prioritized by caller)
@@ -116,7 +110,11 @@ class CourtroomAllocator:
                 continue
 
             # Track if courtroom changed (only count actual switches, not initial assignments)
-            if case.courtroom_id is not None and case.courtroom_id != 0 and case.courtroom_id != courtroom_id:
+            if (
+                case.courtroom_id is not None
+                and case.courtroom_id != 0
+                and case.courtroom_id != courtroom_id
+            ):
                 self.allocation_changes += 1
 
             # Assign case to courtroom
@@ -132,8 +130,7 @@ class CourtroomAllocator:
         return allocations
 
     def _find_best_courtroom(self, case: Case) -> int | None:
-        """
-        Find best courtroom for a case based on allocation strategy.
+        """Find best courtroom for a case based on allocation strategy.
 
         Args:
             case: Case to allocate
@@ -165,13 +162,17 @@ class CourtroomAllocator:
         return min(available, key=lambda x: x[1].daily_load)[0]
 
     def _find_type_affinity_courtroom(self, case: Case) -> int | None:
-        """Find courtroom with most similar case type history (future enhancement)."""
-        # For now, fall back to load balancing
-        # Future: score courtrooms by case_type_distribution similarity
+        """Find courtroom with most similar case type history.
+        
+        Currently uses load balancing. Can be enhanced with case type distribution scoring.
+        """
         return self._find_least_loaded_courtroom()
 
     def _find_continuity_courtroom(self, case: Case) -> int | None:
-        """Try to keep case in same courtroom as previous hearing (future enhancement)."""
+        """Keep case in same courtroom as previous hearing when possible.
+        
+        Maintains courtroom continuity if capacity available, otherwise uses load balancing.
+        """
         # If case already has courtroom assignment and it has capacity, keep it there
         if case.courtroom_id is not None:
             courtroom = self.courtrooms.get(case.courtroom_id)
@@ -182,8 +183,7 @@ class CourtroomAllocator:
         return self._find_least_loaded_courtroom()
 
     def get_utilization_stats(self) -> dict:
-        """
-        Calculate courtroom utilization statistics.
+        """Calculate courtroom utilization statistics.
 
         Returns:
             Dictionary with utilization metrics
