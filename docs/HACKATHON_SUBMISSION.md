@@ -1,10 +1,10 @@
 # Hackathon Submission Guide
-## Intelligent Court Scheduling System with Reinforcement Learning
+## Intelligent Court Scheduling System
 
 ### Quick Start - Hackathon Demo
 
 **IMPORTANT**: The dashboard is fully self-contained. You only need:
-1. Raw data files (provided)
+1. Preferred: `Data/court_data.duckdb` (included in this repo). Alternatively, place the two CSVs in `Data/` with exact names: `ISDMHack_Cases_WPfinal.csv` and `ISDMHack_Hear.csv`.
 2. This codebase
 3. Run the dashboard
 
@@ -25,7 +25,7 @@ uv run streamlit run scheduler/dashboard/app.py
 4. **Review Results**: Check "Cause Lists & Overrides" for judge override interface
 5. **Performance Analysis**: View "Analytics & Reports" for metrics comparison
 
-**No pre-processing required** - dashboard handles everything interactively.
+**No pre-processing required** — EDA automatically loads `Data/court_data.duckdb` when present; if missing, it falls back to `ISDMHack_Cases_WPfinal.csv` and `ISDMHack_Hear.csv` placed in `Data/`.
 
 #### Alternative: CLI Workflow (for scripting)
 ```bash
@@ -53,16 +53,13 @@ uv run court-scheduler eda
 # 2. Generate synthetic cases
 uv run court-scheduler generate --cases 50000
 
-# 3. Train RL agent (optional)
-uv run court-scheduler train --episodes 100
-
-# 4. Run simulation
+# 3. Run simulation
 uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy readiness
 ```
 
 ### What the Pipeline Does
 
-The comprehensive pipeline executes 7 automated steps:
+The comprehensive pipeline executes 6 automated steps:
 
 **Step 1: EDA & Parameter Extraction**
 - Analyzes 739K+ historical hearings
@@ -74,52 +71,39 @@ The comprehensive pipeline executes 7 automated steps:
 - Configurable size (default: 50,000 cases)
 - Diverse case types and complexity levels
 
-**Step 3: RL Training**
-- Trains Tabular Q-learning agent
-- Real-time progress monitoring with reward tracking
-- Configurable episodes and hyperparameters
-
-**Step 4: 2-Year Simulation**
+**Step 3: 2-Year Simulation**
 - Runs 730-day court scheduling simulation
-- Compares RL agent vs baseline algorithms
+- Compares scheduling policies (FIFO, age-based, readiness)
 - Tracks disposal rates, utilization, fairness metrics
 
-**Step 5: Daily Cause List Generation**
+**Step 4: Daily Cause List Generation**
 - Generates production-ready daily cause lists
 - Exports for all simulation days
 - Court-room wise scheduling details
 
-**Step 6: Performance Analysis**
+**Step 5: Performance Analysis**
 - Comprehensive comparison reports
 - Performance visualizations
 - Statistical analysis of all metrics
 
-**Step 7: Executive Summary**
+**Step 6: Executive Summary**
 - Hackathon-ready summary document
 - Key achievements and impact metrics
 - Deployment readiness checklist
 
 ### Expected Output
 
-After completion, you'll find in your output directory:
+After completion, you'll find outputs under your selected run directory (created automatically; the dashboard uses outputs/simulation_runs by default):
 
 ```
-data/hackathon_run/
-|-- pipeline_config.json          # Full configuration used
-|-- training_cases.csv            # Generated case dataset
-|-- trained_rl_agent.pkl          # Trained RL model
-|-- EXECUTIVE_SUMMARY.md          # Hackathon submission summary
-|-- COMPARISON_REPORT.md          # Detailed performance comparison
-|-- simulation_rl/                # RL policy results
-    |-- events.csv
-    |-- metrics.csv
-    |-- report.txt
-    |-- cause_lists/
-        |-- daily_cause_list.csv  # 730 days of cause lists
-|-- simulation_readiness/         # Baseline results
-    |-- ...
-|-- visualizations/               # Performance charts
-    |-- performance_charts.md
+outputs/simulation_runs/v<version>_<timestamp>/
+|-- pipeline_config.json     # Full configuration used
+|-- events.csv               # All scheduled events across days
+|-- metrics.csv              # Aggregate metrics for the run
+|-- daily_summaries.csv      # Per-day summary metrics
+|-- cause_lists/             # Generated daily cause lists (CSV)
+|   |-- YYYY-MM-DD.csv       # One file per simulation day
+|-- figures/                 # Optional charts (when exported)
 ```
 
 ### Hackathon Winning Features
@@ -130,11 +114,11 @@ data/hackathon_run/
 - **Multi-Courtroom Support**: Load-balanced allocation across 5+ courtrooms
 - **Scalability**: Tested with 50,000+ cases
 
-#### 2. Technical Innovation
-- **Reinforcement Learning**: AI-powered adaptive scheduling
-- **6D State Space**: Comprehensive case characteristic modeling
-- **Hybrid Architecture**: Combines RL intelligence with rule-based constraints
-- **Real-time Learning**: Continuous improvement through experience
+#### 2. Technical Approach
+- Data-informed simulation calibrated from historical hearings
+- Multiple heuristic policies: FIFO, age-based, readiness-based
+- Readiness policy enforces bottleneck/ripeness constraints
+- Fairness metrics (e.g., Gini) and utilization tracking
 
 #### 3. Production Readiness
 - **Interactive CLI**: User-friendly parameter configuration
@@ -150,15 +134,7 @@ data/hackathon_run/
 
 ### Performance Benchmarks
 
-Based on comprehensive testing:
-
-| Metric | RL Agent | Baseline | Advantage |
-|--------|----------|----------|-----------|
-| Disposal Rate | 52.1% | 51.9% | +0.4% |
-| Court Utilization | 85%+ | 85%+ | Comparable |
-| Load Balance (Gini) | 0.248 | 0.243 | Comparable |
-| Scalability | 50K cases | 50K cases | Yes |
-| Adaptability | High | Fixed | High |
+Compare policies by running multiple simulations (e.g., readiness vs FIFO vs age) and reviewing disposal rate, utilization, and fairness (Gini). The Analytics & Reports dashboard page can load and compare runs side-by-side.
 
 ### Customization Options
 
@@ -174,12 +150,11 @@ uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy age
 ```
 
 #### For Technical Evaluation
+Focus on repeatability and fairness by comparing multiple policies and seeds:
 ```bash
-# Focus on RL training quality
-uv run court-scheduler train --episodes 200 --lr 0.12 --cases 500 --output models/intensive_agent.pkl
-
-# Then simulate with trained agent
-uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy rl --agent models/intensive_agent.pkl
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy readiness --seed 1
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy fifo --seed 1
+uv run court-scheduler simulate --cases data/cases.csv --days 730 --policy age --seed 1
 ```
 
 #### For Quick Demo/Testing
@@ -202,7 +177,6 @@ uv run court-scheduler workflow --cases 10000 --days 90
 
 2. **Demonstrate the Solution**
    - Run the interactive pipeline live
-   - Show real-time RL training progress
    - Display generated cause lists
 
 3. **Present the Results**
@@ -211,7 +185,7 @@ uv run court-scheduler workflow --cases 10000 --days 90
    - Show actual cause list files (730 days ready)
 
 4. **Emphasize Innovation**
-   - Reinforcement Learning for judicial scheduling (novel)
+   - Data-driven readiness-based scheduling (novel for this context)
    - Production-ready from day 1 (practical)
    - Scalable to entire court system (impactful)
 
@@ -223,7 +197,8 @@ uv run court-scheduler workflow --cases 10000 --days 90
 
 ### System Requirements
 
-- **Python**: 3.10+ with UV
+- **Python**: 3.11+
+- **uv**: required to run commands and the dashboard
 - **Memory**: 8GB+ RAM (16GB recommended for 50K cases)
 - **Storage**: 2GB+ for full pipeline outputs
 - **Runtime**: 
@@ -235,9 +210,6 @@ uv run court-scheduler workflow --cases 10000 --days 90
 
 **Issue**: Out of memory during simulation
 **Solution**: Reduce n_cases to 10,000-20,000 or increase system RAM
-
-**Issue**: RL training very slow
-**Solution**: Reduce episodes to 50 or cases_per_episode to 500
 
 **Issue**: EDA parameters not found
 **Solution**: Run `uv run court-scheduler eda` first
@@ -277,12 +249,11 @@ uv run court-scheduler workflow \
 ### Contact & Support
 
 For hackathon questions or technical support:
-- Review PIPELINE.md for detailed architecture
-- Check README.md for system overview
-- See rl/README.md for RL-specific documentation
+- Check README.md for the system overview
+- See this guide (docs/HACKATHON_SUBMISSION.md) for end-to-end instructions
 
 ---
 
 **Good luck with your hackathon submission!**
 
-This system represents a genuine breakthrough in applying AI to judicial efficiency. The combination of production-ready cause lists, proven performance metrics, and innovative RL architecture positions this as a compelling winning submission.
+This system represents a pragmatic, data-driven approach to improving judicial efficiency. The combination of production-ready cause lists, proven performance metrics, and a transparent, judge-in-the-loop design positions this as a compelling winning submission.
