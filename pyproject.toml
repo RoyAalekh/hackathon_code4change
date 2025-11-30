@@ -1,58 +1,75 @@
 ########################################
-# REQUIRED FOR STREAMLIT CLOUD / POETRY
+# CORE PROJECT METADATA
 ########################################
-[tool.poetry]
+[project]
 name = "code4change-analysis"
 version = "0.1.0"
 description = "Court scheduling simulation + analytics"
-authors = ["Aalekh Roy"]
-package-mode = false
-
+requires-python = ">=3.11"
+authors = [{ name = "Aalekh Roy" }]
 
 ########################################
 # PROJECT DEPENDENCIES
 ########################################
-[tool.poetry.dependencies]
-python = ">=3.11"
-pandas = ">=2.2"
-polars = ">=1.30"
-plotly = ">=6.0"
-openpyxl = ">=3.1"
-XlsxWriter = ">=3.2"
-pyarrow = ">=17.0"
-numpy = ">=2.0"
-networkx = ">=3.0"
-ortools = ">=9.8"
-pydantic = ">=2.0"
-typer = ">=0.12"
-simpy = ">=4.1"
-scipy = ">=1.14"
-scikit-learn = ">=1.5"
-streamlit = ">=1.28"
-altair = ">=5.0"
-duckdb = ">=1.4.2"
+dependencies = [
+    "pandas>=2.2",
+    "polars>=1.30",
+    "plotly>=6.0",
+    "openpyxl>=3.1",
+    "XlsxWriter>=3.2",
+    "pyarrow>=17.0",
+    "numpy>=2.0",
+    "networkx>=3.0",
+    "ortools>=9.8",
+    "pydantic>=2.0",
+    "typer>=0.12",
+    "simpy>=4.1",
+    "scipy>=1.14",
+    "scikit-learn>=1.5",
+    "streamlit>=1.28",
+    "altair>=5.0",
+    "duckdb>=1.4.2",
+]
 
 ########################################
-# OPTIONAL DEV TOOLS
+# DEV DEPENDENCIES
 ########################################
-[tool.poetry.group.dev.dependencies]
-pre-commit = ">=3.5"
-ruff = ">=0.6"
-black = ">=24.0"
-pytest = ">=8.0"
-hypothesis = ">=6.0"
-mypy = ">=1.11"
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "black>=24.0",
+    "mypy>=1.11",
+    "hypothesis>=6.0",
+    "pre-commit>=3.5",
+]
 
 ########################################
-# CLI ENTRY POINTS
+# CLI SCRIPTS
 ########################################
-[tool.poetry.scripts]
+[project.scripts]
 court-scheduler = "cli.main:app"
 
+########################################
+# SETUPTOOLS PACKAGE DISCOVERY (FIX)
+########################################
+[tool.setuptools.packages.find]
+include = [
+    "cli",
+    "eda",
+    "scheduler",
+]
+exclude = [
+    "Data",
+    "configs",
+    "outputs",
+    "reports",
+    "literature",
+]
 
 ########################################
-# BUILD SYSTEM FOR POETRY
+# BUILD SYSTEM
 ########################################
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
