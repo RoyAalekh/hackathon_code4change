@@ -2,11 +2,11 @@
 
 This is the entry point for the Streamlit multi-page dashboard.
 Launch with: uv run court-scheduler dashboard
-Or directly: streamlit run scheduler/dashboard/app.py
 """
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import streamlit as st
@@ -20,6 +20,21 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# Enforce `uv` availability for all dashboard-triggered commands
+try:
+    uv_check = subprocess.run(["uv", "--version"], capture_output=True, text=True)
+    if uv_check.returncode != 0:
+        raise RuntimeError(uv_check.stderr or "uv not available")
+except Exception:
+    import streamlit as st
+
+    st.error(
+        "'uv' is required to run this dashboard's commands. Please install uv and rerun.\n\n"
+        "Install on macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`\n"
+        "Install on Windows (PowerShell): `irm https://astral.sh/uv/install.ps1 | iex`"
+    )
+    st.stop()
 
 # Main page content
 st.title("Court Scheduling System Dashboard")

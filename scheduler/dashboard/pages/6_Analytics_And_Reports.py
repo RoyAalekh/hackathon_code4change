@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -361,6 +362,70 @@ with tab3:
                         with col3:
                             st.metric("Max Age", f"{case_dates['age_days'].max():.0f} days")
 
+                        # Additional Fairness Metrics: Gini and Lorenz Curve
+                        st.markdown("#### Inequality Metrics (Fairness)")
+
+                        def _gini(values: np.ndarray) -> float:
+                            v = np.asarray(values, dtype=float)
+                            v = v[np.isfinite(v)]
+                            v = v[v >= 0]
+                            if v.size == 0:
+                                return float("nan")
+                            if np.all(v == 0):
+                                return 0.0
+                            v_sorted = np.sort(v)
+                            n = v_sorted.size
+                            cumulative = np.cumsum(v_sorted)
+                            # Gini based on cumulative shares
+                            gini = (n + 1 - 2 * np.sum(cumulative) / cumulative[-1]) / n
+                            return float(gini)
+
+                        ages = case_dates["age_days"].to_numpy()
+                        gini_age = _gini(ages)
+
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            if np.isfinite(gini_age):
+                                st.metric("Gini (Age Inequality)", f"{gini_age:.3f}")
+                            else:
+                                st.info("Gini (Age) not available")
+
+                        # Lorenz curve for ages
+                        with col_b:
+                            try:
+                                ages_clean = ages[np.isfinite(ages)]
+                                ages_clean = ages_clean[ages_clean >= 0]
+                                if ages_clean.size > 0:
+                                    ages_sorted = np.sort(ages_clean)
+                                    cum_ages = np.cumsum(ages_sorted)
+                                    cum_ages = np.insert(cum_ages, 0, 0)
+                                    cum_pop = np.linspace(0, 1, num=cum_ages.size)
+                                    lorenz = cum_ages / cum_ages[-1]
+                                    fig_lorenz = go.Figure()
+                                    fig_lorenz.add_trace(
+                                        go.Scatter(x=cum_pop, y=lorenz, mode="lines", name="Lorenz")
+                                    )
+                                    fig_lorenz.add_trace(
+                                        go.Scatter(
+                                            x=[0, 1],
+                                            y=[0, 1],
+                                            mode="lines",
+                                            name="Equality",
+                                            line=dict(dash="dash"),
+                                        )
+                                    )
+                                    fig_lorenz.update_layout(
+                                        title="Lorenz Curve of Case Ages",
+                                        xaxis_title="Cumulative share of cases",
+                                        yaxis_title="Cumulative share of total age",
+                                        height=350,
+                                    )
+                                    st.plotly_chart(fig_lorenz, use_container_width=True)
+                                else:
+                                    st.info("Not enough data to plot Lorenz curve")
+                            except Exception:
+                                st.info("Unable to compute Lorenz curve for current data")
+
                     # Case type fairness
                     if "case_type" in events_df.columns:
                         st.markdown("---")
@@ -378,6 +443,62 @@ with tab3:
                         )
                         fig.update_layout(height=400, xaxis_tickangle=-45)
                         st.plotly_chart(fig, use_container_width=True)
+
+                        # Age distribution by case type (top N by cases)
+                        st.markdown("#### Age Distribution by Case Type (Top 8)")
+                        try:
+                            # Map each case_id to a case_type (take the first occurrence)
+                            cid_to_type = (
+                                events_df.sort_values("date")
+                                .groupby("case_id")["case_type"]
+                                .first()
+                            )
+                            age_with_type = (
+                                case_dates[["age_days"]]
+                                .join(cid_to_type, how="left")
+                                .dropna(subset=["case_type"])  # keep only cases with type
+                            )
+                            top_types = (
+                                age_with_type["case_type"].value_counts().head(8).index.tolist()
+                            )
+                            filt = age_with_type["case_type"].isin(top_types)
+                            fig_box = px.box(
+                                age_with_type[filt],
+                                x="case_type",
+                                y="age_days",
+                                points="outliers",
+                                title="Case Age by Case Type (Top 8)",
+                                labels={"case_type": "Case Type", "age_days": "Age (days)"},
+                            )
+                            fig_box.update_layout(height=420, xaxis_tickangle=-45)
+                            st.plotly_chart(fig_box, use_container_width=True)
+
+                            # Gini by case type (Top 8)
+                            st.markdown("#### Inequality by Case Type (Gini)")
+                            gini_rows = []
+                            for ctype in top_types:
+                                vals = age_with_type.loc[
+                                    age_with_type["case_type"] == ctype, "age_days"
+                                ].to_numpy()
+                                g = _gini(vals)
+                                gini_rows.append({"case_type": ctype, "gini": g})
+                            gini_df = pd.DataFrame(gini_rows).dropna()
+                            if not gini_df.empty:
+                                fig_gini = px.bar(
+                                    gini_df,
+                                    x="case_type",
+                                    y="gini",
+                                    title="Gini Coefficient by Case Type (Top 8)",
+                                    labels={"case_type": "Case Type", "gini": "Gini"},
+                                )
+                                fig_gini.update_layout(
+                                    height=380, xaxis_tickangle=-45, yaxis_range=[0, 1]
+                                )
+                                st.plotly_chart(fig_gini, use_container_width=True)
+                            else:
+                                st.info("Insufficient data to compute per-type Gini")
+                        except Exception as _:
+                            st.info("Unable to compute per-type age distributions for current data")
 
                 except Exception as e:
                     st.error(f"Error loading events data: {e}")
