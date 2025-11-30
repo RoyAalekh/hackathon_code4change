@@ -41,6 +41,48 @@ uv run court-scheduler workflow --cases 10000 --days 384
 
 For a detailed walkthrough tailored for judges, see `docs/HACKATHON_SUBMISSION.md`.
 
+## Run with Docker (recommended for judges)
+
+If you prefer not to install Python or uv locally, use the provided Docker image.
+
+1) Build the image (run in repo root):
+
+```bash
+docker build -t code4change-analysis .
+```
+
+2) Show CLI help (Windows PowerShell example with volume mounts):
+
+```powershell
+docker run --rm `
+  -v ${PWD}\Data:/app/Data `
+  -v ${PWD}\outputs:/app/outputs `
+  code4change-analysis court-scheduler --help
+```
+
+3) Example CLI workflow:
+
+```powershell
+docker run --rm `
+  -v ${PWD}\Data:/app/Data `
+  -v ${PWD}\outputs:/app/outputs `
+  code4change-analysis court-scheduler workflow --cases 10000 --days 384
+```
+
+4) Run the Streamlit dashboard:
+
+```powershell
+docker run --rm -p 8501:8501 `
+  -v ${PWD}\Data:/app/Data `
+  -v ${PWD}\outputs:/app/outputs `
+  code4change-analysis `
+  streamlit run scheduler/dashboard/app.py --server.address=0.0.0.0
+```
+
+Then open http://localhost:8501.
+
+Notes for Windows CMD: use ^ for line continuation and replace ${PWD} with the full path.
+
 ## Data (DuckDB-first)
 
 This repository uses a DuckDB snapshot as the canonical raw dataset.

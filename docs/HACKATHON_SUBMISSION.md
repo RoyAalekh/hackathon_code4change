@@ -27,6 +27,41 @@ uv run streamlit run scheduler/dashboard/app.py
 
 **No pre-processing required** — EDA automatically loads `Data/court_data.duckdb` when present; if missing, it falls back to `ISDMHack_Cases_WPfinal.csv` and `ISDMHack_Hear.csv` placed in `Data/`.
 
+### Docker Quick Start (no local Python needed)
+
+If you prefer a zero-setup run, use Docker. This is the recommended path for judges.
+
+1) Build the image (from the repository root):
+
+```bash
+docker build -t code4change-analysis .
+```
+
+2) Show CLI help (Windows PowerShell example):
+
+```powershell
+docker run --rm `
+  -v ${PWD}\Data:/app/Data `
+  -v ${PWD}\outputs:/app/outputs `
+  code4change-analysis court-scheduler --help
+```
+
+3) Run the Streamlit dashboard:
+
+```powershell
+docker run --rm -p 8501:8501 `
+  -v ${PWD}\Data:/app/Data `
+  -v ${PWD}\outputs:/app/outputs `
+  code4change-analysis `
+  streamlit run scheduler/dashboard/app.py --server.address=0.0.0.0
+```
+
+Then open http://localhost:8501.
+
+Notes:
+- Replace ${PWD} with the full path if using Windows CMD (use ^ for line continuation).
+- Mounting Data/ and outputs/ ensures inputs and generated artifacts persist on your host.
+
 #### Alternative: CLI Workflow (for scripting)
 ```bash
 # Run complete pipeline: generate cases + simulate
