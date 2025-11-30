@@ -13,7 +13,9 @@ Purpose-built for hackathon evaluation. This repository runs out of the box usin
 
 1. Install uv (see above) and ensure Python 3.11+ is available.
 2. Clone this repository.
-3. Launch the dashboard:
+3. Make sure to put `ISDMHack_Cases_WPfinal.csv` and `ISDMHack_Hear.csv` in the `Data/` folder, or provide 
+   `court_data.duckdb` there. Both in csv format, strictly named as shown.
+4. Launch the dashboard:
 
 ```bash
 uv run streamlit run scheduler/dashboard/app.py
