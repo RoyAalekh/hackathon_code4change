@@ -70,7 +70,9 @@ def load_dashboard_data():
 
 with st.spinner("Loading data..."):
     try:
-        cases_df, hearings_df, params, stats, total_cases, total_hearings = load_dashboard_data()
+        cases_df, hearings_df, params, stats, total_cases, total_hearings = (
+            load_dashboard_data()
+        )
     except Exception as e:
         st.error(f"Error loading data: {e}")
         st.info("Please run the EDA pipeline first: `uv run court-scheduler eda`")
@@ -96,28 +98,25 @@ if cases_df.empty and hearings_df.empty:
 
     with col1:
         if st.button("Run EDA Pipeline Now", type="primary", use_container_width=True):
-            import subprocess
+            from eda.load_clean import run_load_and_clean
+            from eda.exploration import run_exploration
+            from eda.parameters import run_parameter_export
 
             with st.spinner("Running EDA pipeline... This will take a few minutes."):
                 try:
-                    result = subprocess.run(
-                        ["uv", "run", "court-scheduler", "eda"],
-                        capture_output=True,
-                        text=True,
-                        cwd=str(Path.cwd()),
-                    )
-
-                    if result.returncode == 0:
-                        st.success("EDA pipeline completed successfully!")
-                        st.info("Reload this page to see the data.")
-                        if st.button("Reload Page"):
-                            st.rerun()
-                    else:
-                        st.error(f"Pipeline failed with error code {result.returncode}")
-                        with st.expander("Error details"):
-                            st.code(result.stderr, language="text")
+                    # Step 1: Load & clean data
+                    run_load_and_clean()
+                    # Step 2: Generate visualizations
+                    run_exploration()
+                    # Step 3: Extract parameters
+                    run_parameter_export()
+                    st.success("EDA pipeline completed successfully!")
+                    st.info("Reload this page to see the updated data.")
+                    if st.button("Reload Page"):
+                        st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    with st.expander("Error details"):
+                        st.exception(e)
 
     with col2:
         with st.expander("Alternative: Run via CLI"):
@@ -133,7 +132,9 @@ col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
     st.metric("Total Cases", f"{total_cases:,}")
     if "YEAR_FILED" in cases_df.columns:
-        year_range = f"{cases_df['YEAR_FILED'].min():.0f}-{cases_df['YEAR_FILED'].max():.0f}"
+        year_range = (
+            f"{cases_df['YEAR_FILED'].min():.0f}-{cases_df['YEAR_FILED'].max():.0f}"
+        )
         st.caption(f"Years: {year_range}")
 
 with col2:
@@ -176,7 +177,9 @@ with col5:
 st.markdown("---")
 
 # Main tabs
-tab1, tab2, tab3 = st.tabs(["Historical Analysis", "Interactive Exploration", "Parameters"])
+tab1, tab2, tab3 = st.tabs(
+    ["Historical Analysis", "Interactive Exploration", "Parameters"]
+)
 
 # TAB 1: Historical Analysis - Pre-generated figures
 with tab1:
@@ -188,11 +191,15 @@ with tab1:
     figures_dir = Path("reports/figures")
 
     if not figures_dir.exists():
-        st.warning("EDA figures not found. Run the EDA pipeline to generate visualizations.")
+        st.warning(
+            "EDA figures not found. Run the EDA pipeline to generate visualizations."
+        )
         st.code("uv run court-scheduler eda")
     else:
         # Find latest versioned directory
-        version_dirs = [d for d in figures_dir.iterdir() if d.is_dir() and d.name.startswith("v")]
+        version_dirs = [
+            d for d in figures_dir.iterdir() if d.is_dir() and d.name.startswith("v")
+        ]
 
         if not version_dirs:
             st.warning(
@@ -207,7 +214,9 @@ with tab1:
             # List available figures from the versioned directory
             # Exclude deprecated/removed visuals like the monthly waterfall
             figure_files = [
-                f for f in sorted(latest_dir.glob("*.html")) if "waterfall" not in f.name.lower()
+                f
+                for f in sorted(latest_dir.glob("*.html"))
+                if "waterfall" not in f.name.lower()
             ]
 
             if not figure_files:
@@ -227,10 +236,14 @@ with tab1:
                     if any(x in f.name for x in ["stage", "sankey", "transition"])
                 ]
                 time_figs = [
-                    f for f in figure_files if any(x in f.name for x in ["monthly", "load", "gap"])
+                    f
+                    for f in figure_files
+                    if any(x in f.name for x in ["monthly", "load", "gap"])
                 ]
                 other_figs = [
-                    f for f in figure_files if f not in distribution_figs + stage_figs + time_figs
+                    f
+                    for f in figure_files
+                    if f not in distribution_figs + stage_figs + time_figs
                 ]
 
                 # Category 1: Case Distributions
@@ -325,7 +338,9 @@ with tab2:
         selected_stages = st.sidebar.multiselect(
             "Stages",
             options=available_stages,
-            default=available_stages[:10] if len(available_stages) > 10 else available_stages,
+            default=available_stages[:10]
+            if len(available_stages) > 10
+            else available_stages,
             key="stage_filter",
         )
     else:
@@ -334,12 +349,16 @@ with tab2:
 
     # Apply filters with copy to ensure clean dataframes
     if selected_case_types and case_type_col:
-        filtered_cases = cases_df[cases_df[case_type_col].isin(selected_case_types)].copy()
+        filtered_cases = cases_df[
+            cases_df[case_type_col].isin(selected_case_types)
+        ].copy()
     else:
         filtered_cases = cases_df.copy()
 
     if selected_stages and stage_col:
-        filtered_hearings = hearings_df[hearings_df[stage_col].isin(selected_stages)].copy()
+        filtered_hearings = hearings_df[
+            hearings_df[stage_col].isin(selected_stages)
+        ].copy()
     else:
         filtered_hearings = hearings_df.copy()
 
@@ -370,9 +389,9 @@ with tab2:
 
     with col4:
         if "Outcome" in filtered_hearings.columns and len(filtered_hearings) > 0:
-            adj_rate_filtered = (filtered_hearings["Outcome"] == "ADJOURNED").sum() / len(
-                filtered_hearings
-            )
+            adj_rate_filtered = (
+                filtered_hearings["Outcome"] == "ADJOURNED"
+            ).sum() / len(filtered_hearings)
             st.metric("Adjournment Rate", f"{adj_rate_filtered:.1%}")
         else:
             st.metric("Adjournment Rate", "N/A")
@@ -387,9 +406,15 @@ with tab2:
     with sub_tab1:
         st.markdown("#### Case Distribution by Type")
 
-        if case_type_col and case_type_col in filtered_cases.columns and len(filtered_cases) > 0:
+        if (
+            case_type_col
+            and case_type_col in filtered_cases.columns
+            and len(filtered_cases) > 0
+        ):
             # Compute value counts and ensure proper structure
-            case_type_counts = filtered_cases[case_type_col].value_counts().reset_index()
+            case_type_counts = (
+                filtered_cases[case_type_col].value_counts().reset_index()
+            )
             # Rename columns for clarity (works across pandas versions)
             case_type_counts.columns = ["CaseType", "Count"]
 
@@ -428,7 +453,11 @@ with tab2:
     with sub_tab2:
         st.markdown("#### Stage Analysis")
 
-        if stage_col and stage_col in filtered_hearings.columns and len(filtered_hearings) > 0:
+        if (
+            stage_col
+            and stage_col in filtered_hearings.columns
+            and len(filtered_hearings) > 0
+        ):
             stage_counts = filtered_hearings[stage_col].value_counts().reset_index()
             stage_counts.columns = ["Stage", "Count"]
 
@@ -465,7 +494,10 @@ with tab2:
                 not_adjourned = total_hearings - adjourned
 
                 outcome_df = pd.DataFrame(
-                    {"Outcome": ["ADJOURNED", "NOT ADJOURNED"], "Count": [adjourned, not_adjourned]}
+                    {
+                        "Outcome": ["ADJOURNED", "NOT ADJOURNED"],
+                        "Count": [adjourned, not_adjourned],
+                    }
                 )
 
                 fig_pie = px.pie(
@@ -474,7 +506,10 @@ with tab2:
                     names="Outcome",
                     title=f"Outcome Distribution (Total: {total_hearings:,})",
                     color="Outcome",
-                    color_discrete_map={"ADJOURNED": "#ef4444", "NOT ADJOURNED": "#22c55e"},
+                    color_discrete_map={
+                        "ADJOURNED": "#ef4444",
+                        "NOT ADJOURNED": "#22c55e",
+                    },
                 )
                 fig_pie.update_layout(height=400)
                 st.plotly_chart(fig_pie, use_container_width=True)
@@ -483,7 +518,9 @@ with tab2:
                 st.markdown("**By Stage**")
                 adj_by_stage = (
                     filtered_hearings.groupby(stage_col)["Outcome"]
-                    .apply(lambda x: (x == "ADJOURNED").sum() / len(x) if len(x) > 0 else 0)
+                    .apply(
+                        lambda x: (x == "ADJOURNED").sum() / len(x) if len(x) > 0 else 0
+                    )
                     .reset_index()
                 )
                 adj_by_stage.columns = ["Stage", "Rate"]
@@ -507,7 +544,9 @@ with tab2:
     with sub_tab4:
         st.markdown("#### Raw Data")
 
-        data_view = st.radio("Select data to view:", ["Cases", "Hearings"], horizontal=True)
+        data_view = st.radio(
+            "Select data to view:", ["Cases", "Hearings"], horizontal=True
+        )
 
         if data_view == "Cases":
             st.dataframe(
@@ -516,7 +555,9 @@ with tab2:
                 height=600,
             )
 
-            st.markdown(f"**Showing first 500 of {len(filtered_cases):,} filtered cases**")
+            st.markdown(
+                f"**Showing first 500 of {len(filtered_cases):,} filtered cases**"
+            )
 
             # Download button
             csv = filtered_cases.to_csv(index=False).encode("utf-8")
@@ -533,7 +574,9 @@ with tab2:
                 height=600,
             )
 
-            st.markdown(f"**Showing first 500 of {len(filtered_hearings):,} filtered hearings**")
+            st.markdown(
+                f"**Showing first 500 of {len(filtered_hearings):,} filtered hearings**"
+            )
 
             # Download button
             csv = filtered_hearings.to_csv(index=False).encode("utf-8")
@@ -559,7 +602,10 @@ with tab3:
         st.markdown("#### Case Types")
         if "case_types" in params and params["case_types"]:
             case_types_df = pd.DataFrame(
-                {"Case Type": params["case_types"], "Index": range(len(params["case_types"]))}
+                {
+                    "Case Type": params["case_types"],
+                    "Index": range(len(params["case_types"])),
+                }
             )
             st.dataframe(case_types_df, use_container_width=True, hide_index=True)
             st.caption(f"Total: {len(params['case_types'])} case types")
@@ -594,9 +640,13 @@ with tab3:
                     with st.expander(f"From: {stage}"):
                         trans_df = pd.DataFrame(transitions)
                         if not trans_df.empty:
-                            st.dataframe(trans_df, use_container_width=True, hide_index=True)
+                            st.dataframe(
+                                trans_df, use_container_width=True, hide_index=True
+                            )
 
-            st.caption(f"Total: {len(params['stage_graph'])} stages with transition data")
+            st.caption(
+                f"Total: {len(params['stage_graph'])} stages with transition data"
+            )
         else:
             st.info("No stage transition data found")
 
@@ -609,8 +659,12 @@ with tab3:
 
             # Create heatmap
             adj_stats = params["adjournment_stats"]
-            stages_list = list(adj_stats.keys())[:20]  # Limit to 20 stages for readability
-            case_types_list = params.get("case_types", [])[:15]  # Limit to 15 case types
+            stages_list = list(adj_stats.keys())[
+                :20
+            ]  # Limit to 20 stages for readability
+            case_types_list = params.get("case_types", [])[
+                :15
+            ]  # Limit to 15 case types
 
             if stages_list and case_types_list:
                 heatmap_data = []
@@ -656,7 +710,12 @@ with tab3:
         """)
 
         config_tab1, config_tab2, config_tab3, config_tab4 = st.tabs(
-            ["EDA Parameters", "Ripeness Classifier", "Case Generator", "Simulation Defaults"]
+            [
+                "EDA Parameters",
+                "Ripeness Classifier",
+                "Case Generator",
+                "Simulation Defaults",
+            ]
         )
 
         with config_tab1:
@@ -857,7 +916,10 @@ UNRIPE cases: 0.7x priority
                 from scheduler.data.config import MONTHLY_SEASONALITY
 
                 season_df = pd.DataFrame(
-                    [{"Month": i, "Factor": MONTHLY_SEASONALITY.get(i, 1.0)} for i in range(1, 13)]
+                    [
+                        {"Month": i, "Factor": MONTHLY_SEASONALITY.get(i, 1.0)}
+                        for i in range(1, 13)
+                    ]
                 )
                 st.dataframe(season_df, use_container_width=True, hide_index=True)
                 st.caption("1.0 = average, >1.0 = more cases, <1.0 = fewer cases")
@@ -900,7 +962,9 @@ Ripe purposes (80% probability):
                 """,
                     language="text",
                 )
-                st.caption("Early ADMISSION: 40% bottleneck, Advanced stages: mostly ripe")
+                st.caption(
+                    "Early ADMISSION: 40% bottleneck, Advanced stages: mostly ripe"
+                )
 
         with config_tab4:
             st.markdown("#### Simulation Defaults")
@@ -930,8 +994,12 @@ Formula:
                 st.markdown("**Courtroom Capacity**")
                 if params and "court_capacity_global" in params:
                     cap = params["court_capacity_global"]
-                    st.metric("Median slots/day", f"{cap.get('slots_median_global', 151):.0f}")
-                    st.metric("P90 slots/day", f"{cap.get('slots_p90_global', 200):.0f}")
+                    st.metric(
+                        "Median slots/day", f"{cap.get('slots_median_global', 151):.0f}"
+                    )
+                    st.metric(
+                        "P90 slots/day", f"{cap.get('slots_p90_global', 200):.0f}"
+                    )
                 else:
                     st.info("Run EDA to load capacity statistics")
 
