@@ -9,7 +9,6 @@ Multi-step workflow:
 
 from __future__ import annotations
 
-import subprocess
 from datetime import date, datetime
 from pathlib import Path
 
@@ -107,11 +106,15 @@ if st.session_state.workflow_step == 1:
             )
 
             start_date = st.date_input(
-                "Filing period start", value=date(2022, 1, 1), help="Start date for case filings"
+                "Filing period start",
+                value=date(2022, 1, 1),
+                help="Start date for case filings",
             )
 
             end_date = st.date_input(
-                "Filing period end", value=date(2023, 12, 31), help="End date for case filings"
+                "Filing period end",
+                value=date(2023, 12, 31),
+                help="End date for case filings",
             )
 
         with col2:
@@ -124,7 +127,9 @@ if st.session_state.workflow_step == 1:
             )
 
             output_dir = st.text_input(
-                "Output directory", value="data/generated", help="Directory to save generated cases"
+                "Output directory",
+                value="data/generated",
+                help="Directory to save generated cases",
             )
 
             st.info(f"Cases will be saved to: {output_dir}/cases.csv")
@@ -142,13 +147,21 @@ if st.session_state.workflow_step == 1:
                 col_a, col_b, col_c = st.columns(3)
 
                 with col_a:
-                    rsa_pct = st.number_input("RSA %", 0, 100, 20, help="Regular Second Appeal")
-                    rfa_pct = st.number_input("RFA %", 0, 100, 17, help="Regular First Appeal")
-                    crp_pct = st.number_input("CRP %", 0, 100, 20, help="Civil Revision Petition")
+                    rsa_pct = st.number_input(
+                        "RSA %", 0, 100, 20, help="Regular Second Appeal"
+                    )
+                    rfa_pct = st.number_input(
+                        "RFA %", 0, 100, 17, help="Regular First Appeal"
+                    )
+                    crp_pct = st.number_input(
+                        "CRP %", 0, 100, 20, help="Civil Revision Petition"
+                    )
 
                 with col_b:
                     ca_pct = st.number_input("CA %", 0, 100, 20, help="Civil Appeal")
-                    ccc_pct = st.number_input("CCC %", 0, 100, 11, help="Civil Contempt")
+                    ccc_pct = st.number_input(
+                        "CCC %", 0, 100, 11, help="Civil Contempt"
+                    )
                     cp_pct = st.number_input("CP %", 0, 100, 9, help="Civil Petition")
 
                 with col_c:
@@ -156,55 +169,92 @@ if st.session_state.workflow_step == 1:
                         "CMP %", 0, 100, 3, help="Civil Miscellaneous Petition"
                     )
 
-                    total_pct = rsa_pct + rfa_pct + crp_pct + ca_pct + ccc_pct + cp_pct + cmp_pct
+                    total_pct = (
+                        rsa_pct
+                        + rfa_pct
+                        + crp_pct
+                        + ca_pct
+                        + ccc_pct
+                        + cp_pct
+                        + cmp_pct
+                    )
                     if total_pct != 100:
                         st.error(f"Total: {total_pct}% (must be 100%)")
                     else:
                         st.success(f"Total: {total_pct}%")
             else:
                 st.info("Using default distribution from historical data")
+        from scheduler.dashboard.utils.ui_input_parser import (
+            build_case_type_distribution,
+            merge_with_default_config,
+        )
+
+        case_type_dist_dict = None
+        if use_custom_dist:
+            case_type_dist_dict = build_case_type_distribution(
+                rsa_pct,
+                rfa_pct,
+                crp_pct,
+                ca_pct,
+                ccc_pct,
+                cp_pct,
+                cmp_pct,
+            )
 
         if st.button("Generate Cases", type="primary", use_container_width=True):
             with st.spinner(f"Generating {n_cases:,} cases..."):
                 try:
-                    # Ensure output directory exists
-                    output_path = Path(output_dir)
-                    output_path.mkdir(parents=True, exist_ok=True)
-                    cases_file = output_path / "cases.csv"
+                    from cli.config import load_generate_config
+                    from scheduler.data.case_generator import CaseGenerator
 
-                    # Run generation via CLI
-                    result = subprocess.run(
-                        [
-                            "uv",
-                            "run",
-                            "court-scheduler",
-                            "generate",
-                            "--cases",
-                            str(n_cases),
-                            "--start",
-                            start_date.isoformat(),
-                            "--end",
-                            end_date.isoformat(),
-                            "--output",
-                            str(cases_file),
-                            "--seed",
-                            str(seed),
-                        ],
-                        capture_output=True,
-                        text=True,
-                        cwd=str(Path.cwd()),
+                    DEFAULT_GENERATE_CFG_PATH = Path("configs/generate.sample.toml")
+                    config_from_file = None
+
+                    if DEFAULT_GENERATE_CFG_PATH.exists():
+                        config_from_file = load_generate_config(
+                            DEFAULT_GENERATE_CFG_PATH
+                        )
+                    cfg = merge_with_default_config(
+                        config_from_file,
+                        n_cases=n_cases,
+                        start_date=start_date,
+                        end_date=end_date,
+                        output_dir=output_dir,
+                        seed=seed,
                     )
 
-                    if result.returncode == 0:
-                        st.success(f"Generated {n_cases:,} cases successfully")
-                        st.session_state.cases_ready = True
-                        st.session_state.cases_path = str(cases_file)
-                        st.session_state.workflow_step = 2
-                        st.rerun()
-                    else:
-                        st.error(f"Generation failed with error code {result.returncode}")
-                        with st.expander("Show error details"):
-                            st.code(result.stderr, language="text")
+                    # Prepare output dir
+                    cfg.output.parent.mkdir(parents=True, exist_ok=True)
+
+                    case_type_dist_dict = None
+                    if use_custom_dist:
+                        from scheduler.dashboard.utils.ui_input_parser import (
+                            build_case_type_distribution,
+                        )
+
+                        case_type_dist_dict = build_case_type_distribution(
+                            rsa_pct, rfa_pct, crp_pct, ca_pct, ccc_pct, cp_pct, cmp_pct
+                        )
+
+                    gen = CaseGenerator(start=cfg.start, end=cfg.end, seed=cfg.seed)
+
+                    cases = gen.generate(
+                        cfg.n_cases,
+                        stage_mix_auto=True,
+                        case_type_distribution=case_type_dist_dict,
+                    )
+
+                    # Save files
+                    CaseGenerator.to_csv(cases, cfg.output)
+                    hearings_path = cfg.output.parent / "hearings.csv"
+                    CaseGenerator.to_hearings_csv(cases, hearings_path)
+
+                    st.success(f"Generated {len(cases):,} cases successfully!")
+                    st.session_state.cases_ready = True
+                    st.session_state.cases_path = str(cfg.output)
+                    st.session_state.workflow_step = 2
+                    st.rerun()
+
                 except Exception as e:
                     st.error(f"Error generating cases: {e}")
 
@@ -253,7 +303,9 @@ if st.session_state.workflow_step == 1:
                     cases_file = temp_path / "uploaded_cases.csv"
                     df.to_csv(cases_file, index=False)
 
-                    if st.button("Use This Dataset", type="primary", use_container_width=True):
+                    if st.button(
+                        "Use This Dataset", type="primary", use_container_width=True
+                    ):
                         st.session_state.cases_ready = True
                         st.session_state.cases_path = str(cases_file)
                         st.session_state.workflow_step = 2
@@ -305,7 +357,11 @@ elif st.session_state.workflow_step == 2:
         )
 
         seed_sim = st.number_input(
-            "Random seed", min_value=0, max_value=9999, value=42, help="Seed for reproducibility"
+            "Random seed",
+            min_value=0,
+            max_value=9999,
+            value=42,
+            help="Seed for reproducibility",
         )
 
         log_dir = st.text_input(
@@ -394,7 +450,9 @@ elif st.session_state.workflow_step == 2:
             st.rerun()
 
     with col2:
-        if st.button("Next: Run Simulation ->", type="primary", use_container_width=True):
+        if st.button(
+            "Next: Run Simulation ->", type="primary", use_container_width=True
+        ):
             st.session_state.workflow_step = 3
             st.rerun()
 
@@ -425,97 +483,70 @@ elif st.session_state.workflow_step == 3:
     if st.button("Start Simulation", type="primary", use_container_width=True):
         with st.spinner("Running simulation... This may take several minutes."):
             try:
-                # Create a unique per-run directory under the selected base output folder
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                base_out_dir = (
-                    Path(config["log_dir"])
-                    if config.get("log_dir")
-                    else Path("outputs") / "simulation_runs"
+                from cli.config import load_simulate_config
+                from scheduler.dashboard.utils.simulation_runner import (
+                    merge_simulation_config,
+                    run_simulation_dashboard,
                 )
+
+                DEFAULT_SIM_CFG_PATH = Path("configs/simulate.sample.toml")
+                if DEFAULT_SIM_CFG_PATH.exists():
+                    default_cfg = load_simulate_config(DEFAULT_SIM_CFG_PATH)
+                else:
+                    default_cfg = (
+                        load_simulate_config(Path("parameter_sweep.toml"))
+                        if Path("parameter_sweep.toml").exists()
+                        else None
+                    )
+
+                if default_cfg is None:
+                    st.error("No default simulate config found.")
+                    st.stop()
+
+                merged_cfg = merge_simulation_config(
+                    default_cfg,
+                    cases_path=config["cases"],
+                    days=config["days"],
+                    start_date=date.fromisoformat(config["start"])
+                    if config.get("start")
+                    else None,
+                    policy=config["policy"],
+                    seed=config["seed"],
+                    log_dir=config["log_dir"],
+                )
+
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                base_out_dir = Path(config["log_dir"])
                 run_dir = base_out_dir / f"v{CLI_VERSION}_{ts}"
                 run_dir.mkdir(parents=True, exist_ok=True)
 
-                # Persist effective run directory
+                # Update session config
                 st.session_state.sim_config["log_dir"] = str(run_dir)
 
-                # Build command
-                cmd = [
-                    "uv",
-                    "run",
-                    "court-scheduler",
-                    "simulate",
-                    "--cases",
-                    config["cases"],
-                    "--days",
-                    str(config["days"]),
-                    "--policy",
-                    config["policy"],
-                    "--seed",
-                    str(config["seed"]),
-                ]
+                result = run_simulation_dashboard(merged_cfg, run_dir)
 
-                if config.get("start"):
-                    cmd.extend(["--start", config["start"]])
+                st.success("Simulation completed successfully!")
 
-                # Always pass the per-run output directory
-                cmd.extend(["--log-dir", str(run_dir)])
+                st.session_state.sim_results = {
+                    "success": True,
+                    "output": result["summary"],
+                    "log_dir": str(run_dir),
+                    "completed_at": datetime.now().isoformat(),
+                }
 
-                # Run simulation
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    cwd=str(Path.cwd()),
-                )
+                events_path = result["events_path"]
+                if events_path.exists():
+                    generator = CauseListGenerator(events_path)
+                    compiled_path = generator.generate_daily_lists(run_dir)
+                    summary_path = run_dir / "daily_summaries.csv"
 
-                if result.returncode == 0:
-                    st.success("Simulation completed successfully")
-
-                    # Parse output to extract results
-                    st.session_state.sim_results = {
-                        "success": True,
-                        "output": result.stdout,
-                        "log_dir": str(run_dir),
-                        "completed_at": datetime.now().isoformat(),
+                    st.session_state.sim_results["cause_lists"] = {
+                        "compiled": str(compiled_path),
+                        "summary": str(summary_path),
                     }
 
-                    # Auto-generate Daily Cause Lists from events.csv
-                    try:
-                        log_dir_path = (
-                            Path(st.session_state.sim_results["log_dir"])
-                            if st.session_state.sim_results.get("log_dir")
-                            else run_dir
-                        )
-                        events_path = log_dir_path / "events.csv"
-                        if events_path.exists():
-                            generator = CauseListGenerator(events_path)
-                            # Save directly in the run directory (no subfolder)
-                            compiled_path = generator.generate_daily_lists(log_dir_path)
-                            summary_path = log_dir_path / "daily_summaries.csv"
-                            # Store generated paths for display in Step 4
-                            st.session_state.sim_results["cause_lists"] = {
-                                "compiled": str(compiled_path),
-                                "summary": str(summary_path),
-                            }
-                            st.info(f"Daily cause lists generated in {log_dir_path}")
-                        else:
-                            st.warning(
-                                f"events.csv not found at {events_path}. Skipping cause list generation."
-                            )
-                    except Exception as gen_err:
-                        st.warning(f"Failed to generate daily cause lists: {gen_err}")
-
-                    st.session_state.workflow_step = 4
-                    st.rerun()
-                else:
-                    st.error(f"Simulation failed with error code {result.returncode}")
-                    with st.expander("Show error details"):
-                        st.code(result.stderr, language="text")
-
-                    st.session_state.sim_results = {
-                        "success": False,
-                        "error": result.stderr,
-                    }
+                st.session_state.workflow_step = 4
+                st.rerun()
 
             except Exception as e:
                 st.error(f"Error running simulation: {e}")
@@ -565,7 +596,9 @@ elif st.session_state.workflow_step == 4:
                 for file in files:
                     col1, col2 = st.columns([3, 1])
                     with col1:
-                        st.markdown(f"- `{file.name}` ({file.stat().st_size / 1024:.1f} KB)")
+                        st.markdown(
+                            f"- `{file.name}` ({file.stat().st_size / 1024:.1f} KB)"
+                        )
                     with col2:
                         if file.suffix in [".csv", ".txt"]:
                             with open(file, "rb") as f:
@@ -573,7 +606,9 @@ elif st.session_state.workflow_step == 4:
                                     label="Download",
                                     data=f.read(),
                                     file_name=file.name,
-                                    mime="text/csv" if file.suffix == ".csv" else "text/plain",
+                                    mime="text/csv"
+                                    if file.suffix == ".csv"
+                                    else "text/plain",
                                     key=f"download_{file.name}",
                                 )
 
@@ -594,7 +629,10 @@ elif st.session_state.workflow_step == 4:
                                     x=metrics_df.index,
                                     y="disposal_rate",
                                     title="Disposal Rate Over Time",
-                                    labels={"x": "Day", "disposal_rate": "Disposal Rate"},
+                                    labels={
+                                        "x": "Day",
+                                        "disposal_rate": "Disposal Rate",
+                                    },
                                 )
                                 st.plotly_chart(fig, use_container_width=True)
 
@@ -611,7 +649,9 @@ elif st.session_state.workflow_step == 4:
 
                             # Show summary statistics
                             st.markdown("### Summary Statistics")
-                            st.dataframe(metrics_df.describe(), use_container_width=True)
+                            st.dataframe(
+                                metrics_df.describe(), use_container_width=True
+                            )
 
                     except Exception as e:
                         st.warning(f"Could not load metrics: {e}")
@@ -660,7 +700,9 @@ elif st.session_state.workflow_step == 4:
                 else None
             )
             if events_csv and events_csv.exists():
-                if st.button("Generate Daily Cause Lists Now", use_container_width=False):
+                if st.button(
+                    "Generate Daily Cause Lists Now", use_container_width=False
+                ):
                     try:
                         # Save directly alongside events.csv (run directory root)
                         out_dir = events_csv.parent

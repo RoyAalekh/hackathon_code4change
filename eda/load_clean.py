@@ -60,6 +60,7 @@ def _null_summary(df: pl.DataFrame, name: str) -> None:
 def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
     try:
         import duckdb
+
         if DUCKDB_FILE.exists():
             print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
             conn = duckdb.connect(str(DUCKDB_FILE))
@@ -72,6 +73,8 @@ def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
     except Exception as e:
         print(f"[WARN] DuckDB load failed ({e}), falling back to CSV...")
     print("Loading raw data from CSVs (fallback)...")
+    if not CASES_FILE.exists() or not HEAR_FILE.exists():
+        raise FileNotFoundError("One or both CSV files are missing.")
     cases = pl.read_csv(
         CASES_FILE,
         try_parse_dates=True,
@@ -95,7 +98,9 @@ def clean_and_augment(
     # Standardise date columns if needed
     for col in ["DATE_FILED", "DECISION_DATE", "REGISTRATION_DATE", "LAST_SYNC_TIME"]:
         if col in cases.columns and cases[col].dtype == pl.Utf8:
-            cases = cases.with_columns(pl.col(col).str.strptime(pl.Date, "%d-%m-%Y", strict=False))
+            cases = cases.with_columns(
+                pl.col(col).str.strptime(pl.Date, "%d-%m-%Y", strict=False)
+            )
 
     # Deduplicate on keys
     if "CNR_NUMBER" in cases.columns:
@@ -158,7 +163,10 @@ def clean_and_augment(
             hearings.filter(pl.col("BusinessOnDate").is_not_null())
             .sort(["CNR_NUMBER", "BusinessOnDate"])
             .with_columns(
-                ((pl.col("BusinessOnDate") - pl.col("BusinessOnDate").shift(1)) / timedelta(days=1))
+                (
+                    (pl.col("BusinessOnDate") - pl.col("BusinessOnDate").shift(1))
+                    / timedelta(days=1)
+                )
                 .over("CNR_NUMBER")
                 .alias("HEARING_GAP_DAYS")
             )
@@ -175,7 +183,14 @@ def clean_and_augment(
         )
         cases = cases.join(gap_stats, on="CNR_NUMBER", how="left")
     else:
-        for col in ["GAP_MEAN", "GAP_MEDIAN", "GAP_P25", "GAP_P75", "GAP_STD", "N_GAPS"]:
+        for col in [
+            "GAP_MEAN",
+            "GAP_MEDIAN",
+            "GAP_P25",
+            "GAP_P75",
+            "GAP_STD",
+            "N_GAPS",
+        ]:
             cases = cases.with_columns(pl.lit(None).alias(col))
 
     # Fill some basics
