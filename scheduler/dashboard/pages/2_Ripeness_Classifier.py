@@ -99,7 +99,9 @@ RipenessClassifier.set_thresholds(
 )
 
 # Main content
-tab1, tab2, tab3 = st.tabs(["Current Configuration", "Interactive Testing", "Batch Classification"])
+tab1, tab2, tab3 = st.tabs(
+    ["Current Configuration", "Interactive Testing", "Batch Classification"]
+)
 
 with tab1:
     st.markdown("### Current Classifier Configuration")
@@ -153,7 +155,10 @@ with tab1:
     stage_rules = {
         "PRE-TRIAL": {"min_days": 60, "keywords": ["affidavit filed", "reply filed"]},
         "TRIAL": {"min_days": 45, "keywords": ["evidence complete", "cross complete"]},
-        "POST-TRIAL": {"min_days": 30, "keywords": ["arguments complete", "written note"]},
+        "POST-TRIAL": {
+            "min_days": 30,
+            "keywords": ["arguments complete", "written note"],
+        },
         "FINAL DISPOSAL": {"min_days": 15, "keywords": ["disposed", "judgment"]},
     }
 
@@ -190,8 +195,12 @@ with tab2:
         service_hearings_count = st.number_input(
             "Service Hearings", min_value=0, max_value=20, value=3
         )
-        days_in_stage = st.number_input("Days in Stage", min_value=0, max_value=365, value=45)
-        case_age = st.number_input("Case Age (days)", min_value=0, max_value=3650, value=120)
+        days_in_stage = st.number_input(
+            "Days in Stage", min_value=0, max_value=365, value=45
+        )
+        case_age = st.number_input(
+            "Case Age (days)", min_value=0, max_value=3650, value=120
+        )
 
     # Keywords
     has_keywords = st.multiselect(
@@ -213,7 +222,7 @@ with tab2:
 
         test_case = Case(
             case_id=case_id,
-            case_type=case_type,  # Use string directly instead of CaseType enum
+            case_type=case_type,
             filed_date=filed_date,
             current_stage=case_stage,
             status=CaseStatus.PENDING,
@@ -286,15 +295,25 @@ with tab3:
 
                     with col1:
                         pct = classifications["RIPE"] / len(cases) * 100
-                        st.metric("RIPE Cases", f"{classifications['RIPE']:,}", f"{pct:.1f}%")
+                        st.metric(
+                            "RIPE Cases", f"{classifications['RIPE']:,}", f"{pct:.1f}%"
+                        )
 
                     with col2:
                         pct = classifications["UNKNOWN"] / len(cases) * 100
-                        st.metric("UNKNOWN Cases", f"{classifications['UNKNOWN']:,}", f"{pct:.1f}%")
+                        st.metric(
+                            "UNKNOWN Cases",
+                            f"{classifications['UNKNOWN']:,}",
+                            f"{pct:.1f}%",
+                        )
 
                     with col3:
                         pct = classifications["UNRIPE"] / len(cases) * 100
-                        st.metric("UNRIPE Cases", f"{classifications['UNRIPE']:,}", f"{pct:.1f}%")
+                        st.metric(
+                            "UNRIPE Cases",
+                            f"{classifications['UNRIPE']:,}",
+                            f"{pct:.1f}%",
+                        )
 
                     # Pie chart
                     fig = px.pie(
@@ -302,7 +321,11 @@ with tab3:
                         names=list(classifications.keys()),
                         title="Classification Distribution",
                         color=list(classifications.keys()),
-                        color_discrete_map={"RIPE": "green", "UNKNOWN": "orange", "UNRIPE": "red"},
+                        color_discrete_map={
+                            "RIPE": "green",
+                            "UNKNOWN": "orange",
+                            "UNRIPE": "red",
+                        },
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -311,4 +334,6 @@ with tab3:
 
 # Footer
 st.markdown("---")
-st.markdown("*Adjust thresholds in the sidebar to see real-time impact on classification*")
+st.markdown(
+    "*Adjust thresholds in the sidebar to see real-time impact on classification*"
+)
