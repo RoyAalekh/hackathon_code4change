@@ -5,12 +5,6 @@ Launch with: uv run court-scheduler dashboard  (or `streamlit run` directly)
 """
 
 from __future__ import annotations
-import sys
-from pathlib import Path
-
-ROOT = Path("/app")  # absolute, unambiguous
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 
 import streamlit as st
