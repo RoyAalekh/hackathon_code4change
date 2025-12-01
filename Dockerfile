@@ -21,7 +21,7 @@ RUN pip install --upgrade pip setuptools wheel \
     && pip install .
 
 # ----------------------------------------------------------
-# Install uv system-wide (correct syntax, no --yes)
+# Install uv system-wide
 # ----------------------------------------------------------
 RUN curl -LsSf https://astral.sh/uv/install.sh -o uv-installer.sh && \
     sh uv-installer.sh --install-dir /usr/local/bin && \
