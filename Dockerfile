@@ -14,6 +14,12 @@ ENV PATH="/root/.local/bin:${PATH}"
 
 COPY . .
 
+# Install git and git-lfs to fetch LFS objects
+RUN apt-get update && apt-get install -y --no-install-recommends git git-lfs \
+    && git lfs install \
+    && git lfs pull \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN uv venv .venv \
     && uv pip install --upgrade pip setuptools wheel \
     && uv pip install .
