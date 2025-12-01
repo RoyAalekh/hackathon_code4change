@@ -63,7 +63,9 @@ def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
         import duckdb
 
         if not Path(DUCKDB_FILE).exists():
-            print("DuckDB file not found, skipping DuckDB load.")
+            print(
+                f"DuckDB file not found at {Path(DUCKDB_FILE)}, skipping DuckDB load."
+            )
             raise FileNotFoundError("DuckDB file not found.")
         if DUCKDB_FILE.exists():
             print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
