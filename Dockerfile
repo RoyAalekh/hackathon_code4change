@@ -7,31 +7,37 @@ RUN apt-get update \
 
 WORKDIR /app
 
+# Tell uv to ALWAYS use /app/.venv instead of creating temp envs
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
-# Create uv venv
+# Create virtual env
 RUN uv venv /app/.venv
+
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:${PATH}"
+
+# Ensure scheduler is always importable
+ENV PYTHONPATH="/app"
 
 # Copy project
 COPY . .
 
-# IMPORTANT: ensure scheduler/ is importable ALWAYS
-ENV PYTHONPATH="/app"
-
-# Install dependencies inside venv
+# Install deps
 RUN uv pip install --upgrade pip setuptools wheel \
     && uv pip install .
 
-# Sanity check
+# Diagnostics
 RUN uv --version \
     && python --version \
+    && which court-scheduler \
+    && which python \
+    && which streamlit \
     && pip list
 
 EXPOSE 8501
 
 CMD ["/app/.venv/bin/streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-
