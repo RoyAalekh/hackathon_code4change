@@ -24,5 +24,4 @@ RUN pip install --upgrade pip setuptools wheel \
 # Streamlit default port
 EXPOSE 8501
 
-# Safe default: show CLI help
-CMD ["court-scheduler", "--help"]
+CMD ["streamlit", "run", "scheduler/dashboard/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
