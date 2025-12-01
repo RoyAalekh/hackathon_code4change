@@ -14,6 +14,8 @@ ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
+RUN cp /root/.local/bin/uv /usr/local/bin/uv
+
 # Create virtual env
 RUN uv venv /app/.venv
 
