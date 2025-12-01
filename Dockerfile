@@ -21,6 +21,7 @@ COPY . .
 RUN pip install --upgrade pip setuptools wheel \
     && pip install .
 RUN curl -fsSL https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
 # Streamlit default port
 EXPOSE 8501
 
