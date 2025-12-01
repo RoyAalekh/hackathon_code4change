@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
-# Install system deps
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 curl unzip \
+    && apt-get install -y --no-install-recommends curl unzip libgomp1 \
     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -12,22 +13,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/app
 
-WORKDIR /app
-
 COPY . .
 
-# Install Python package
 RUN pip install --upgrade pip setuptools wheel \
     && pip install .
 
-# ----------------------------------------------------------
-# Install uv system-wide
-# ----------------------------------------------------------
-RUN curl -LsSf https://astral.sh/uv/install.sh -o uv-installer.sh && \
-    sh uv-installer.sh --install-dir /usr/local/bin && \
-    rm uv-installer.sh
+# Install uv
+RUN curl -L "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz" \
+    -o uv.tar.gz \
+    && tar -xzf uv.tar.gz \
+    && mv uv /usr/local/bin/uv \
+    && rm uv.tar.gz
 
-# Check uv installation
+# Test uv works
 RUN uv --version
 
 EXPOSE 8501
