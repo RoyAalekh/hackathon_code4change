@@ -19,15 +19,16 @@ RUN pip install --upgrade pip setuptools wheel \
     && pip install .
 
 # Install uv
-RUN curl -L "https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz" \
-    -o uv.tar.gz \
-    && tar -xzf uv.tar.gz \
-    && mv uv /usr/local/bin/uv \
-    && rm uv.tar.gz
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Test uv works
+# Move uv from /root/.local/bin to /usr/local/bin
+# so Render's non-root user can access it
+RUN cp /root/.local/bin/uv /usr/local/bin/uv
+
+# Verify
 RUN uv --version
 
+# Streamlit default
 EXPOSE 8501
 
 CMD ["uv", "run", "scheduler/dashboard/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
