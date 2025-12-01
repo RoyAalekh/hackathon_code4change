@@ -33,4 +33,4 @@ RUN uv --version \
 
 EXPOSE 8501
 
-CMD ["uv", "run", "streamlit", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
