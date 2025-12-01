@@ -1,12 +1,14 @@
 services:
   - type: web
     name: court-scheduler
-    env: docker
+    runtime: docker
     plan: starter
     autoDeploy: true
+    dockerfilePath: ./Dockerfile
     dockerCommand: >
-      uv run scheduler/dashboard/app.py
-      --server.port 8501
-      --server.address 0.0.0.0
+      streamlit run scheduler/dashboard/app.py
+      --server.port=8501
+      --server.address=0.0.0.0
     envVars:
-      PORT: 8501
+      - key: PORT
+        value: "8501"
