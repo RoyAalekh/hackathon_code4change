@@ -11,9 +11,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 DATA_DIR = PROJECT_ROOT / "Data"
-DUCKDB_FILE = DATA_DIR / "court_data.duckdb"
-CASES_FILE = DATA_DIR / "ISDMHack_Cases_WPfinal.csv"
-HEAR_FILE = DATA_DIR / "ISDMHack_Hear.csv"
+CASE_FILE_PARQUET = DATA_DIR / "cases.parquet"
+HEARING_FILE_PARQUET = DATA_DIR / "hearings.parquet"
 
 # Default paths (used when EDA is run standalone)
 REPORTS_DIR = PROJECT_ROOT / "reports"

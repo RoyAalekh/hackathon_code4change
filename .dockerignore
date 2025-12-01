@@ -11,5 +11,4 @@ reports/*.pdf
 configs/*.secrets.*
 uv.lock
 code4change_analysis.egg-info
-!data/court_data.duckdb
 

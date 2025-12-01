@@ -14,10 +14,8 @@ from pathlib import Path
 import polars as pl
 
 from eda.config import (
-    CASES_FILE,
-    DUCKDB_FILE,
-    HEAR_FILE,
-    NULL_TOKENS,
+    CASE_FILE_PARQUET,
+    HEARING_FILE_PARQUET,
     RUN_TS,
     VERSION,
     _get_cases_parquet,
@@ -55,46 +53,23 @@ def _null_summary(df: pl.DataFrame, name: str) -> None:
     print(row)
 
 
-# -------------------------------------------------------------------
-# Main logic
-# -------------------------------------------------------------------
 def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
-    try:
-        import duckdb
+    cases_path = Path(CASE_FILE_PARQUET)
+    hearings_path = Path(HEARING_FILE_PARQUET)
 
-        if not Path(DUCKDB_FILE).exists():
-            print(
-                f"DuckDB file not found at {Path(DUCKDB_FILE)}, skipping DuckDB load."
-            )
-            raise FileNotFoundError("DuckDB file not found.")
-        if DUCKDB_FILE.exists():
-            print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
-            conn = duckdb.connect(str(DUCKDB_FILE))
-            cases = pl.from_pandas(conn.execute("SELECT * FROM cases").df())
-            hearings = pl.from_pandas(conn.execute("SELECT * FROM hearings").df())
-            conn.close()
-            print(f"Cases shape: {cases.shape}")
-            print(f"Hearings shape: {hearings.shape}")
-            return cases, hearings
-    except Exception as e:
-        print(f"[WARN] DuckDB load failed ({e}), falling back to CSV...")
-    print("Loading raw data from CSVs (fallback)...")
-    if not CASES_FILE.exists() or not HEAR_FILE.exists():
-        raise FileNotFoundError("One or both CSV files are missing.")
-    cases = pl.read_csv(
-        CASES_FILE,
-        try_parse_dates=True,
-        null_values=NULL_TOKENS,
-        infer_schema_length=100_000,
-    )
-    hearings = pl.read_csv(
-        HEAR_FILE,
-        try_parse_dates=True,
-        null_values=NULL_TOKENS,
-        infer_schema_length=100_000,
-    )
+    if not (cases_path.exists() and hearings_path.exists()):
+        raise FileNotFoundError(
+            "Parquet files not found. Will not proceed with loading cleaned data."
+        )
+
+    print(f"Loading Parquet files:\n- {cases_path}\n- {hearings_path}")
+
+    cases = pl.read_parquet(cases_path)
+    hearings = pl.read_parquet(hearings_path)
+
     print(f"Cases shape: {cases.shape}")
     print(f"Hearings shape: {hearings.shape}")
+
     return cases, hearings
 
 

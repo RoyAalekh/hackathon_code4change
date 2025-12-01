@@ -13,10 +13,16 @@ Purpose-built for hackathon evaluation. This repository runs out of the box usin
 
 1. Install uv (see above) and ensure Python 3.11+ is available.
 2. Clone this repository.
-3. Make sure to put `ISDMHack_Cases_WPfinal.csv` and `ISDMHack_Hear.csv` in the `Data/` folder, or provide 
-   `court_data.duckdb` there. Both in csv format, strictly named as shown.
-4. Launch the dashboard:
-
+3. Navigate to the repo root and activate uv:
+```bash
+cd path/to/repo
+uv activate
+```
+4. Install dependencies:
+```bash
+uv install
+```
+5. Launch the dashboard:
 ```bash
 uv run streamlit run scheduler/dashboard/app.py
 ```
@@ -85,18 +91,10 @@ Then open http://localhost:8501.
 
 Notes for Windows CMD: use ^ for line continuation and replace ${PWD} with the full path.
 
-## Data (DuckDB-first)
+## Data (Parquet format)
 
-This repository uses a DuckDB snapshot as the canonical raw dataset.
-
-- Preferred source: `Data/court_data.duckdb` (tables: `cases`, `hearings`). If this file is present, the EDA step will load directly from it.
-- CSV fallback: If the DuckDB file is missing, place the two organizer CSVs in `Data/` with the exact names below and the EDA step will load them automatically:
-  - `ISDMHack_Cases_WPfinal.csv`
-  - `ISDMHack_Hear.csv`
+This repository uses a parquet data format for efficient loading and processing.
+Provided excel and csv files have been pre-converted to parquet and stored in the `Data/` folder.
 
 No manual pre-processing is required; launch the dashboard and click “Run EDA Pipeline.”
 
-## Notes
-
-- This submission intentionally focuses on the end-to-end demo path. Internal development notes, enhancements, and bug fix logs have been removed from the README.
-- uv is enforced by the dashboard for a consistent, reproducible environment.
