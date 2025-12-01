@@ -24,6 +24,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # Move uv from /root/.local/bin to /usr/local/bin
 # so Render's non-root user can access it
 RUN cp /root/.local/bin/uv /usr/local/bin/uv
+ENV PATH="/usr/local/bin:${PATH}"
 
 # Verify
 RUN uv --version
