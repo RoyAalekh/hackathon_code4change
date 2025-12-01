@@ -7,21 +7,26 @@ RUN apt-get update \
 
 WORKDIR /app
 
+# Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# MAKE SURE uv is globally visible
-ENV PATH="/root/.local/bin:${PATH}"
-
+# Create uv virtual environment
 RUN uv venv /app/.venv
 
+# Activate the venv in all following layers
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:${PATH}"
 
+# Make project importable
+ENV PYTHONPATH="/app"
+
 COPY . .
 
+# Install project + dependencies into venv
 RUN uv pip install --upgrade pip setuptools wheel \
     && uv pip install .
 
+# Debug info
 RUN uv --version \
     && which uv \
     && which python \
@@ -30,4 +35,4 @@ RUN uv --version \
 
 EXPOSE 8501
 
-CMD ["/app/.venv/bin/streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
