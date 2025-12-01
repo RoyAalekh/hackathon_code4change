@@ -10,10 +10,13 @@ WORKDIR /app
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# Make uv visible to shell
+ENV PATH="/root/.local/bin:${PATH}"
+
 # Create uv virtual environment
 RUN uv venv /app/.venv
 
-# Activate the venv in all following layers
+# Activate venv for rest of image
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:${PATH}"
 
@@ -22,11 +25,9 @@ ENV PYTHONPATH="/app"
 
 COPY . .
 
-# Install project + dependencies into venv
 RUN uv pip install --upgrade pip setuptools wheel \
     && uv pip install .
 
-# Debug info
 RUN uv --version \
     && which uv \
     && which python \
