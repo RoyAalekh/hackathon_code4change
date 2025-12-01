@@ -6,7 +6,6 @@ __pycache__
 *.tmp
 .venv
 .env
-.git
 .gitignore
 reports/*.pdf
 configs/*.secrets.*

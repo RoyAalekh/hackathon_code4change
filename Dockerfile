@@ -1,24 +1,19 @@
 # syntax=docker/dockerfile:1
-
 FROM python:3.11-slim
 
-# Install minimal system dependencies
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libgomp1 \
+    && apt-get install -y --no-install-recommends curl git git-lfs libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 COPY . .
 
-# Install git and git-lfs to fetch LFS objects
-RUN apt-get update && apt-get install -y --no-install-recommends git git-lfs \
-    && git lfs install \
-    && git lfs pull \
-    && rm -rf /var/lib/apt/lists/*
+RUN git lfs install && git lfs pull
 
 RUN uv venv .venv \
     && uv pip install --upgrade pip setuptools wheel \
@@ -26,9 +21,6 @@ RUN uv venv .venv \
 
 ENV PATH="/app/.venv/bin:${PATH}"
 ENV PYTHONPATH="/app"
-
-# Health check commands
-RUN uv --version && python --version && which court-scheduler && which streamlit
 
 EXPOSE 8501
 
