@@ -20,8 +20,8 @@ COPY . .
 
 RUN pip install --upgrade pip setuptools wheel \
     && pip install .
-
+RUN curl -fsSL https://astral.sh/uv/install.sh | sh
 # Streamlit default port
 EXPOSE 8501
 
-CMD ["streamlit", "run", "scheduler/dashboard/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+CMD ["uv", "run", "scheduler/dashboard/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
