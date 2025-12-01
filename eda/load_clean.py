@@ -9,6 +9,7 @@ Responsibilities:
 """
 
 from datetime import timedelta
+from pathlib import Path
 
 import polars as pl
 
@@ -61,6 +62,9 @@ def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
     try:
         import duckdb
 
+        if not Path(DUCKDB_FILE).exists():
+            print("DuckDB file not found, skipping DuckDB load.")
+            raise FileNotFoundError("DuckDB file not found.")
         if DUCKDB_FILE.exists():
             print(f"Loading raw data from DuckDB: {DUCKDB_FILE}")
             conn = duckdb.connect(str(DUCKDB_FILE))
