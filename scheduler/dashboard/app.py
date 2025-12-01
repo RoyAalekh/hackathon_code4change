@@ -1,7 +1,7 @@
 """Main dashboard application for Court Scheduling System.
 
 This is the entry point for the Streamlit multi-page dashboard.
-Launch with: uv run court-scheduler dashboard
+Launch with: uv run court-scheduler dashboard  (or `streamlit run` directly)
 """
 
 from __future__ import annotations
@@ -12,8 +12,6 @@ ROOT = Path("/app")  # absolute, unambiguous
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import subprocess
-from pathlib import Path
 
 import streamlit as st
 
@@ -27,29 +25,17 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Enforce `uv` availability for all dashboard-triggered commands
-try:
-    uv_check = subprocess.run(["uv", "--version"], capture_output=True, text=True)
-    if uv_check.returncode != 0:
-        raise RuntimeError(uv_check.stderr or "uv not available")
-except Exception:
-    import streamlit as st
-
-    st.error(
-        "'uv' is required to run this dashboard's commands. Please install uv and rerun.\n\n"
-        "Install on macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`\n"
-        "Install on Windows (PowerShell): `irm https://astral.sh/uv/install.ps1 | iex`"
-    )
-    st.stop()
-
 # Main page content
 st.title("Court Scheduling System Dashboard")
-st.markdown("**Karnataka High Court - Algorithmic Decision Support for Fair Scheduling**")
+st.markdown(
+    "**Karnataka High Court - Algorithmic Decision Support for Fair Scheduling**"
+)
 
 st.markdown("---")
 
 # Introduction
-st.markdown("""
+st.markdown(
+    """
 ### Overview
 
 This system provides data-driven scheduling recommendations while maintaining judicial control and autonomy.
@@ -63,7 +49,8 @@ This system provides data-driven scheduling recommendations while maintaining ju
 - Reinforcement learning optimization
 
 Use the sidebar to navigate between sections.
-""")
+"""
+)
 
 # System status
 status_header_col1, status_header_col2 = st.columns([3, 1])
@@ -99,47 +86,57 @@ with col3:
         st.caption("Run EDA pipeline to generate visualizations")
 
 # Setup Controls
-eda_ready = data_status["cleaned_data"] and data_status["parameters"] and data_status["eda_figures"]
+eda_ready = (
+    data_status["cleaned_data"]
+    and data_status["parameters"]
+    and data_status["eda_figures"]
+)
 
 if not eda_ready:
     st.markdown("---")
     st.markdown("### Initial Setup")
-    st.warning("Run the EDA pipeline to process historical data and extract parameters.")
+    st.warning(
+        "Run the EDA pipeline to process historical data and extract parameters."
+    )
 
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.markdown("""
+        st.markdown(
+            """
         The EDA pipeline:
         - Loads and cleans historical court case data
         - Extracts statistical parameters (distributions, transition probabilities)
         - Generates analysis visualizations
 
         This is required before using other dashboard features.
-        """)
+        """
+        )
 
     with col2:
         if st.button("Run EDA Pipeline", type="primary", use_container_width=True):
-            import subprocess
+            from eda.load_clean import run_load_and_clean
+            from eda.exploration import run_exploration
+            from eda.parameters import run_parameter_export
 
             with st.spinner("Running EDA pipeline... This may take a few minutes."):
                 try:
-                    result = subprocess.run(
-                        ["uv", "run", "court-scheduler", "eda"],
-                        capture_output=True,
-                        text=True,
-                        cwd=str(Path.cwd()),
-                    )
+                    # Step 1: Load & clean data
+                    run_load_and_clean()
 
-                    if result.returncode == 0:
-                        st.success("EDA pipeline completed")
-                        st.rerun()
-                    else:
-                        st.error(f"Pipeline failed with error code {result.returncode}")
-                        with st.expander("Show error details"):
-                            st.code(result.stderr, language="text")
+                    # Step 2: Generate visualizations
+                    run_exploration()
+
+                    # Step 3: Extract parameters
+                    run_parameter_export()
+
+                    st.success("EDA pipeline completed")
+                    st.rerun()
+
                 except Exception as e:
-                    st.error(f"Error running pipeline: {e}")
+                    st.error("Pipeline failed while running inside the dashboard.")
+                    with st.expander("Show error details"):
+                        st.exception(e)
 
     with st.expander("Run manually via CLI"):
         st.code("uv run court-scheduler eda", language="bash")
@@ -154,7 +151,8 @@ st.markdown("### Dashboard Sections")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("""
+    st.markdown(
+        """
     #### 1. Data & Insights
     Explore historical case data, view analysis visualizations, and review extracted parameters.
 
@@ -163,10 +161,12 @@ with col1:
 
     #### 3. Simulation Workflow
     Generate cases, configure simulation parameters, run scheduling simulations, and view results.
-    """)
+    """
+    )
 
 with col2:
-    st.markdown("""
+    st.markdown(
+        """
     #### 4. Cause Lists & Overrides
     View generated cause lists, make judge overrides, and track modification history.
 
@@ -175,13 +175,15 @@ with col2:
 
     #### 6. Analytics & Reports
     Compare simulation runs, analyze performance metrics, and export comprehensive reports.
-    """)
+    """
+    )
 
 st.markdown("---")
 
 # Typical Workflow
 with st.expander("Typical Usage Workflow"):
-    st.markdown("""
+    st.markdown(
+        """
     **Step 1: Initial Setup**
     - Run EDA pipeline to process historical data (one-time setup)
 
@@ -208,7 +210,8 @@ with st.expander("Typical Usage Workflow"):
     - Use Analytics & Reports to evaluate fairness and efficiency
     - Compare different scheduling policies
     - Identify bottlenecks and improvement opportunities
-    """)
+    """
+    )
 
 # Footer
 st.markdown("---")
