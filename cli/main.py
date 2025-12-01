@@ -36,9 +36,15 @@ console = Console(legacy_windows=False)
 
 @app.command()
 def eda(
-    skip_clean: bool = typer.Option(False, "--skip-clean", help="Skip data loading and cleaning"),
-    skip_viz: bool = typer.Option(False, "--skip-viz", help="Skip visualization generation"),
-    skip_params: bool = typer.Option(False, "--skip-params", help="Skip parameter extraction"),
+    skip_clean: bool = typer.Option(
+        False, "--skip-clean", help="Skip data loading and cleaning"
+    ),
+    skip_viz: bool = typer.Option(
+        False, "--skip-viz", help="Skip visualization generation"
+    ),
+    skip_params: bool = typer.Option(
+        False, "--skip-params", help="Skip parameter extraction"
+    ),
 ) -> None:
     """Run the EDA pipeline (load, explore, extract parameters)."""
     console.print("[bold blue]Running EDA Pipeline[/bold blue]")
@@ -60,7 +66,9 @@ def eda(
                 console.print("Data loaded and cleaned")
 
             if not skip_viz:
-                task = progress.add_task("Step 2/3: Generate visualizations...", total=None)
+                task = progress.add_task(
+                    "Step 2/3: Generate visualizations...", total=None
+                )
                 run_exploration()
                 progress.update(task, completed=True)
                 console.print("Visualizations generated")
@@ -92,8 +100,12 @@ def generate(
     interactive: bool = typer.Option(
         False, "--interactive", help="Prompt for parameters interactively"
     ),
-    n_cases: int = typer.Option(10000, "--cases", "-n", help="Number of cases to generate"),
-    start_date: str = typer.Option("2022-01-01", "--start", help="Start date (YYYY-MM-DD)"),
+    n_cases: int = typer.Option(
+        10000, "--cases", "-n", help="Number of cases to generate"
+    ),
+    start_date: str = typer.Option(
+        "2022-01-01", "--start", help="Start date (YYYY-MM-DD)"
+    ),
     end_date: str = typer.Option("2023-12-31", "--end", help="End date (YYYY-MM-DD)"),
     output: str = typer.Option(
         "data/generated/cases.csv", "--output", "-o", help="Output CSV file"
@@ -178,7 +190,9 @@ def generate(
             user_dist = _parse_case_type_dist(case_type_dist)
 
             gen = CaseGenerator(start=start, end=end, seed=seed)
-            cases = gen.generate(n_cases, stage_mix_auto=True, case_type_distribution=user_dist)
+            cases = gen.generate(
+                n_cases, stage_mix_auto=True, case_type_distribution=user_dist
+            )
             # Write primary cases file
             CaseGenerator.to_csv(cases, output_path)
             # Also write detailed hearings history alongside, for the dashboard/classifier
@@ -209,14 +223,22 @@ def simulate(
     interactive: bool = typer.Option(
         False, "--interactive", help="Prompt for parameters interactively"
     ),
-    cases_csv: str = typer.Option("data/generated/cases.csv", "--cases", help="Input cases CSV"),
-    days: int = typer.Option(384, "--days", "-d", help="Number of working days to simulate"),
-    start_date: str = typer.Option(None, "--start", help="Simulation start date (YYYY-MM-DD)"),
+    cases_csv: str = typer.Option(
+        "data/generated/cases.csv", "--cases", help="Input cases CSV"
+    ),
+    days: int = typer.Option(
+        384, "--days", "-d", help="Number of working days to simulate"
+    ),
+    start_date: str = typer.Option(
+        None, "--start", help="Simulation start date (YYYY-MM-DD)"
+    ),
     policy: str = typer.Option(
         "readiness", "--policy", "-p", help="Scheduling policy (fifo/age/readiness)"
     ),
     seed: int = typer.Option(42, "--seed", help="Random seed"),
-    log_dir: str = typer.Option(None, "--log-dir", "-o", help="Output directory for logs"),
+    log_dir: str = typer.Option(
+        None, "--log-dir", "-o", help="Output directory for logs"
+    ),
 ) -> None:
     """Run court scheduling simulation."""
     console.print(f"[bold blue]Running {days}-day simulation[/bold blue]")
@@ -238,7 +260,9 @@ def simulate(
                 update={
                     "cases": Path(cases_csv) if cases_csv else scfg.cases,
                     "days": days if days else scfg.days,
-                    "start": (date_cls.fromisoformat(start_date) if start_date else scfg.start),
+                    "start": (
+                        date_cls.fromisoformat(start_date) if start_date else scfg.start
+                    ),
                     "policy": policy if policy else scfg.policy,
                     "seed": seed if seed else scfg.seed,
                     "log_dir": (Path(log_dir) if log_dir else scfg.log_dir),
@@ -249,12 +273,16 @@ def simulate(
                 cases_csv = typer.prompt("Cases CSV", default=cases_csv)
                 days = typer.prompt("Days to simulate", default=days)
                 start_date = (
-                    typer.prompt("Start date (YYYY-MM-DD) or blank", default=start_date or "")
+                    typer.prompt(
+                        "Start date (YYYY-MM-DD) or blank", default=start_date or ""
+                    )
                     or None
                 )
                 policy = typer.prompt("Policy [readiness|fifo|age]", default=policy)
                 seed = typer.prompt("Random seed", default=seed)
-                log_dir = typer.prompt("Log dir (or blank)", default=log_dir or "") or None
+                log_dir = (
+                    typer.prompt("Log dir (or blank)", default=log_dir or "") or None
+                )
             scfg = SimulateConfig(
                 cases=Path(cases_csv),
                 days=days,
@@ -268,9 +296,13 @@ def simulate(
         path = scfg.cases
         if path.exists():
             cases = CaseGenerator.from_csv(path)
-            start = scfg.start or (max(c.filed_date for c in cases) if cases else date_cls.today())
+            start = scfg.start or (
+                max(c.filed_date for c in cases) if cases else date_cls.today()
+            )
         else:
-            console.print(f"[yellow]Warning:[/yellow] {path} not found. Generating test cases...")
+            console.print(
+                f"[yellow]Warning:[/yellow] {path} not found. Generating test cases..."
+            )
             start = scfg.start or date_cls.today().replace(day=1)
             gen = CaseGenerator(start=start, end=start.replace(day=28), seed=scfg.seed)
             cases = gen.generate(n_cases=5 * 151)
@@ -315,7 +347,9 @@ def simulate(
         gini_disp = gini(disp_times) if disp_times else 0.0
 
         console.print("\n[bold]Disposal Metrics:[/bold]")
-        console.print(f"  Cases disposed: {res.disposals:,} ({res.disposals / len(cases):.1%})")
+        console.print(
+            f"  Cases disposed: {res.disposals:,} ({res.disposals / len(cases):.1%})"
+        )
         console.print(f"  Gini coefficient: {gini_disp:.3f}")
 
         console.print("\n[bold]Efficiency:[/bold]")
@@ -333,14 +367,15 @@ def simulate(
         raise typer.Exit(code=1)
 
 
-# RL training command removed
-
-
 @app.command()
 def workflow(
-    n_cases: int = typer.Option(10000, "--cases", "-n", help="Number of cases to generate"),
+    n_cases: int = typer.Option(
+        10000, "--cases", "-n", help="Number of cases to generate"
+    ),
     sim_days: int = typer.Option(384, "--days", "-d", help="Simulation days"),
-    output_dir: str = typer.Option("data/workflow_run", "--output", "-o", help="Output directory"),
+    output_dir: str = typer.Option(
+        "data/workflow_run", "--output", "-o", help="Output directory"
+    ),
     seed: int = typer.Option(42, "--seed", help="Random seed"),
 ) -> None:
     """Run full workflow: EDA -> Generate -> Simulate -> Report."""
@@ -417,7 +452,9 @@ def dashboard(
         app_path = Path(__file__).parent.parent / "scheduler" / "dashboard" / "app.py"
 
         if not app_path.exists():
-            console.print(f"[bold red]Error:[/bold red] Dashboard app not found at {app_path}")
+            console.print(
+                f"[bold red]Error:[/bold red] Dashboard app not found at {app_path}"
+            )
             raise typer.Exit(code=1)
 
         # Run streamlit
