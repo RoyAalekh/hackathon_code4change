@@ -1,12 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
-# Install system deps (including curl for uv installer)
+# Install system deps
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 curl \
+    && apt-get install -y --no-install-recommends libgomp1 curl unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Python env hygiene
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -15,18 +14,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Copy repo
 COPY . .
 
 # Install Python package
 RUN pip install --upgrade pip setuptools wheel \
     && pip install .
 
-# Install uv
-RUN curl -fsSL https://astral.sh/uv/install.sh | sh
+# ----------------------------------------------------------
+# Install uv system-wide (NOT into /root/.cargo/bin)
+# ----------------------------------------------------------
+RUN curl -LsSf https://astral.sh/uv/install.sh -o uv-installer.sh && \
+    sh uv-installer.sh --yes --install-dir /usr/local/bin && \
+    rm uv-installer.sh
 
-# Add uv to PATH so CMD can find it
-ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
+# Check uv installation
+RUN uv --version
 
 EXPOSE 8501
 
