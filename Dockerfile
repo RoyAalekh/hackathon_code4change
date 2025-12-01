@@ -7,30 +7,27 @@ RUN apt-get update \
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/app
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# MAKE SURE uv is globally visible
+ENV PATH="/root/.local/bin:${PATH}"
+
+RUN uv venv /app/.venv
+
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="/app/.venv/bin:${PATH}"
 
 COPY . .
 
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install .
+RUN uv pip install --upgrade pip setuptools wheel \
+    && uv pip install .
 
-# Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN uv --version \
+    && which uv \
+    && which python \
+    && python --version \
+    && which streamlit
 
-# Move uv from /root/.local/bin to /usr/local/bin
-# so Render's non-root user can access it
-RUN cp /root/.local/bin/uv /usr/local/bin/uv
-ENV PATH="/usr/local/bin:${PATH}"
-
-# Verify
-RUN uv --version
-
-# Streamlit default
 EXPOSE 8501
 
-CMD ["streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-
+CMD ["/app/.venv/bin/streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
