@@ -21,10 +21,10 @@ RUN pip install --upgrade pip setuptools wheel \
     && pip install .
 
 # ----------------------------------------------------------
-# Install uv system-wide (NOT into /root/.cargo/bin)
+# Install uv system-wide (correct syntax, no --yes)
 # ----------------------------------------------------------
 RUN curl -LsSf https://astral.sh/uv/install.sh -o uv-installer.sh && \
-    sh uv-installer.sh --yes --install-dir /usr/local/bin && \
+    sh uv-installer.sh --install-dir /usr/local/bin && \
     rm uv-installer.sh
 
 # Check uv installation
