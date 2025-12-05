@@ -530,6 +530,7 @@ elif st.session_state.workflow_step == 3:
                 st.session_state.sim_results = {
                     "success": True,
                     "output": result["summary"],
+                    "insights": result.get("insights"),
                     "log_dir": str(run_dir),
                     "completed_at": datetime.now().isoformat(),
                 }
@@ -582,6 +583,13 @@ elif st.session_state.workflow_step == 4:
         # Display console output
         with st.expander("View simulation output"):
             st.code(results["output"], language="text")
+
+        # Key Insights from engine (if available)
+        insights_text = results.get("insights")
+        if insights_text:
+            st.markdown("### Key Insights")
+            with st.expander("Show engine insights", expanded=True):
+                st.code(insights_text, language="text")
 
         # Check for generated files
         log_dir = Path(results["log_dir"])

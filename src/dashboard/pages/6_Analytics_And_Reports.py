@@ -43,14 +43,18 @@ tab1, tab2, tab3, tab4 = st.tabs(
 # TAB 1: Simulation Comparison
 with tab1:
     st.markdown("### Simulation Comparison")
-    st.markdown("Compare multiple simulation runs to evaluate different policies and parameters.")
+    st.markdown(
+        "Compare multiple simulation runs to evaluate different policies and parameters."
+    )
 
     # Check for available simulation runs
     outputs_dir = Path("outputs")
     runs_dir = outputs_dir / "simulation_runs"
 
     if not runs_dir.exists():
-        st.warning("No simulation outputs found. Run simulations first to generate data.")
+        st.warning(
+            "No simulation outputs found. Run simulations first to generate data."
+        )
     else:
         # Collect all run directories that actually contain a metrics.csv file.
         # Some runs may be nested (version folder inside timestamp). We treat every
@@ -100,6 +104,33 @@ with tab1:
 
                         st.success("Loaded metrics successfully")
 
+                        # Show Key Insights from report.txt for both runs
+                        st.markdown("#### Key Insights (from report.txt)")
+                        col_ins_1, col_ins_2 = st.columns(2)
+
+                        report1_path = run_map[run1_label] / "report.txt"
+                        report2_path = run_map[run2_label] / "report.txt"
+
+                        with col_ins_1:
+                            st.markdown(f"**{run1_label}**")
+                            if report1_path.exists():
+                                st.code(
+                                    report1_path.read_text(encoding="utf-8"),
+                                    language="text",
+                                )
+                            else:
+                                st.info("No report.txt found for this run.")
+
+                        with col_ins_2:
+                            st.markdown(f"**{run2_label}**")
+                            if report2_path.exists():
+                                st.code(
+                                    report2_path.read_text(encoding="utf-8"),
+                                    language="text",
+                                )
+                            else:
+                                st.info("No report.txt found for this run.")
+
                         # Summary comparison
                         st.markdown("#### Summary Comparison")
 
@@ -125,10 +156,16 @@ with tab1:
 
                         with col3:
                             st.markdown("**Difference**")
-                            if "disposal_rate" in df1.columns and "disposal_rate" in df2.columns:
+                            if (
+                                "disposal_rate" in df1.columns
+                                and "disposal_rate" in df2.columns
+                            ):
                                 diff_disposal = avg_disposal2 - avg_disposal1
                                 st.metric("Disposal Rate Δ", f"{diff_disposal:+.2%}")
-                            if "utilization" in df1.columns and "utilization" in df2.columns:
+                            if (
+                                "utilization" in df1.columns
+                                and "utilization" in df2.columns
+                            ):
                                 diff_util = avg_util2 - avg_util1
                                 st.metric("Utilization Δ", f"{diff_util:+.2%}")
 
@@ -137,7 +174,10 @@ with tab1:
                         # Time series comparison
                         st.markdown("#### Performance Over Time")
 
-                        if "disposal_rate" in df1.columns and "disposal_rate" in df2.columns:
+                        if (
+                            "disposal_rate" in df1.columns
+                            and "disposal_rate" in df2.columns
+                        ):
                             fig = go.Figure()
 
                             fig.add_trace(
@@ -169,7 +209,10 @@ with tab1:
 
                             st.plotly_chart(fig, use_container_width=True)
 
-                        if "utilization" in df1.columns and "utilization" in df2.columns:
+                        if (
+                            "utilization" in df1.columns
+                            and "utilization" in df2.columns
+                        ):
                             fig = go.Figure()
 
                             fig.add_trace(
@@ -271,7 +314,10 @@ with tab2:
                         x="run",
                         y="disposal_rate",
                         title="Disposal Rate Distribution by Run",
-                        labels={"disposal_rate": "Disposal Rate", "run": "Simulation Run"},
+                        labels={
+                            "disposal_rate": "Disposal Rate",
+                            "run": "Simulation Run",
+                        },
                     )
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
@@ -325,7 +371,9 @@ with tab3:
             events_path = label_to_path[selected_run] / "events.csv"
 
             if not events_path.exists():
-                st.warning("Events file not found. Fairness analysis requires detailed event logs.")
+                st.warning(
+                    "Events file not found. Fairness analysis requires detailed event logs."
+                )
             else:
                 try:
                     events_df = pd.read_csv(events_path)
@@ -337,9 +385,12 @@ with tab3:
                         st.markdown("#### Case Age Distribution")
 
                         # Calculate case ages (simplified - would need filed_date for accurate calculation)
-                        case_dates = events_df.groupby("case_id")["date"].agg(["min", "max"])
+                        case_dates = events_df.groupby("case_id")["date"].agg(
+                            ["min", "max"]
+                        )
                         case_dates["age_days"] = (
-                            pd.to_datetime(case_dates["max"]) - pd.to_datetime(case_dates["min"])
+                            pd.to_datetime(case_dates["max"])
+                            - pd.to_datetime(case_dates["min"])
                         ).dt.days
 
                         fig = px.histogram(
@@ -347,7 +398,10 @@ with tab3:
                             x="age_days",
                             nbins=30,
                             title="Distribution of Case Ages",
-                            labels={"age_days": "Age (days)", "count": "Number of Cases"},
+                            labels={
+                                "age_days": "Age (days)",
+                                "count": "Number of Cases",
+                            },
                         )
                         fig.update_layout(height=400)
                         st.plotly_chart(fig, use_container_width=True)
@@ -356,11 +410,18 @@ with tab3:
                         col1, col2, col3 = st.columns(3)
 
                         with col1:
-                            st.metric("Median Age", f"{case_dates['age_days'].median():.0f} days")
+                            st.metric(
+                                "Median Age",
+                                f"{case_dates['age_days'].median():.0f} days",
+                            )
                         with col2:
-                            st.metric("Mean Age", f"{case_dates['age_days'].mean():.0f} days")
+                            st.metric(
+                                "Mean Age", f"{case_dates['age_days'].mean():.0f} days"
+                            )
                         with col3:
-                            st.metric("Max Age", f"{case_dates['age_days'].max():.0f} days")
+                            st.metric(
+                                "Max Age", f"{case_dates['age_days'].max():.0f} days"
+                            )
 
                         # Additional Fairness Metrics: Gini and Lorenz Curve
                         st.markdown("#### Inequality Metrics (Fairness)")
@@ -403,7 +464,12 @@ with tab3:
                                     lorenz = cum_ages / cum_ages[-1]
                                     fig_lorenz = go.Figure()
                                     fig_lorenz.add_trace(
-                                        go.Scatter(x=cum_pop, y=lorenz, mode="lines", name="Lorenz")
+                                        go.Scatter(
+                                            x=cum_pop,
+                                            y=lorenz,
+                                            mode="lines",
+                                            name="Lorenz",
+                                        )
                                     )
                                     fig_lorenz.add_trace(
                                         go.Scatter(
@@ -420,18 +486,24 @@ with tab3:
                                         yaxis_title="Cumulative share of total age",
                                         height=350,
                                     )
-                                    st.plotly_chart(fig_lorenz, use_container_width=True)
+                                    st.plotly_chart(
+                                        fig_lorenz, use_container_width=True
+                                    )
                                 else:
                                     st.info("Not enough data to plot Lorenz curve")
                             except Exception:
-                                st.info("Unable to compute Lorenz curve for current data")
+                                st.info(
+                                    "Unable to compute Lorenz curve for current data"
+                                )
 
                     # Case type fairness
                     if "case_type" in events_df.columns:
                         st.markdown("---")
                         st.markdown("#### Case Type Balance")
 
-                        case_type_counts = events_df["case_type"].value_counts().reset_index()
+                        case_type_counts = (
+                            events_df["case_type"].value_counts().reset_index()
+                        )
                         case_type_counts.columns = ["case_type", "count"]
 
                         fig = px.bar(
@@ -439,7 +511,10 @@ with tab3:
                             x="case_type",
                             y="count",
                             title="Top 10 Case Types by Hearing Count",
-                            labels={"case_type": "Case Type", "count": "Number of Hearings"},
+                            labels={
+                                "case_type": "Case Type",
+                                "count": "Number of Hearings",
+                            },
                         )
                         fig.update_layout(height=400, xaxis_tickangle=-45)
                         st.plotly_chart(fig, use_container_width=True)
@@ -456,10 +531,15 @@ with tab3:
                             age_with_type = (
                                 case_dates[["age_days"]]
                                 .join(cid_to_type, how="left")
-                                .dropna(subset=["case_type"])  # keep only cases with type
+                                .dropna(
+                                    subset=["case_type"]
+                                )  # keep only cases with type
                             )
                             top_types = (
-                                age_with_type["case_type"].value_counts().head(8).index.tolist()
+                                age_with_type["case_type"]
+                                .value_counts()
+                                .head(8)
+                                .index.tolist()
                             )
                             filt = age_with_type["case_type"].isin(top_types)
                             fig_box = px.box(
@@ -468,7 +548,10 @@ with tab3:
                                 y="age_days",
                                 points="outliers",
                                 title="Case Age by Case Type (Top 8)",
-                                labels={"case_type": "Case Type", "age_days": "Age (days)"},
+                                labels={
+                                    "case_type": "Case Type",
+                                    "age_days": "Age (days)",
+                                },
                             )
                             fig_box.update_layout(height=420, xaxis_tickangle=-45)
                             st.plotly_chart(fig_box, use_container_width=True)
@@ -498,7 +581,9 @@ with tab3:
                             else:
                                 st.info("Insufficient data to compute per-type Gini")
                         except Exception as _:
-                            st.info("Unable to compute per-type age distributions for current data")
+                            st.info(
+                                "Unable to compute per-type age distributions for current data"
+                            )
 
                 except Exception as e:
                     st.error(f"Error loading events data: {e}")
@@ -506,7 +591,9 @@ with tab3:
 # TAB 4: Report Generation
 with tab4:
     st.markdown("### Report Generation")
-    st.markdown("Generate comprehensive reports summarizing system performance and analysis.")
+    st.markdown(
+        "Generate comprehensive reports summarizing system performance and analysis."
+    )
 
     outputs_dir = Path("outputs")
     runs_dir = outputs_dir / "simulation_runs"
@@ -549,11 +636,15 @@ with tab4:
                         report_sections = []
 
                         # Header
-                        report_sections.append("# Court Scheduling System - Performance Report")
+                        report_sections.append(
+                            "# Court Scheduling System - Performance Report"
+                        )
                         report_sections.append(
                             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                         )
-                        report_sections.append(f"Runs included: {', '.join(selected_runs)}")
+                        report_sections.append(
+                            f"Runs included: {', '.join(selected_runs)}"
+                        )
                         report_sections.append("")
 
                         # Performance metrics
@@ -579,7 +670,9 @@ with tab4:
                                             f"- Average Utilization: {avg_util:.2%}"
                                         )
 
-                                    report_sections.append(f"- Simulation Days: {len(df)}")
+                                    report_sections.append(
+                                        f"- Simulation Days: {len(df)}"
+                                    )
                                     report_sections.append("")
 
                         # Comparison

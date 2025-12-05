@@ -67,6 +67,7 @@ class CourtSimResult:
     end_date: date
     ripeness_transitions: int = 0  # Number of ripeness status changes
     unripe_filtered: int = 0  # Cases filtered out due to unripeness
+    insights_text: str = ""  # Collected insights as plain text
 
 
 class CourtSim:
@@ -587,25 +588,31 @@ class CourtSim:
             else 0.0
         )
 
-        # Generate ripeness summary
+        # Collect insights text (previously printed inline)
+        insights_lines: List[str] = []
+
+        # Ripeness summary
         active_cases = [c for c in self.cases if c.status != CaseStatus.DISPOSED]
-        ripeness_dist = {}
+        ripeness_dist: Dict[str, int] = {}
         for c in active_cases:
-            status = c.ripeness_status  # Already a string
+            status = c.ripeness_status
             ripeness_dist[status] = ripeness_dist.get(status, 0) + 1
 
-        print("\n=== Ripeness Summary ===")
-        print(f"Total ripeness transitions: {self._ripeness_transitions}")
-        print(f"Cases filtered (unripe): {self._unripe_filtered}")
-        print("\nFinal ripeness distribution:")
+        insights_lines.append("=== Ripeness Summary ===")
+        insights_lines.append(
+            f"Total ripeness transitions: {self._ripeness_transitions}"
+        )
+        insights_lines.append(f"Cases filtered (unripe): {self._unripe_filtered}")
+        insights_lines.append("\nFinal ripeness distribution:")
         for status, count in sorted(ripeness_dist.items()):
             pct = (count / len(active_cases) * 100) if active_cases else 0
-            print(f"  {status}: {count} ({pct:.1f}%)")
+            insights_lines.append(f"  {status}: {count} ({pct:.1f}%)")
 
-        # Generate courtroom allocation summary
-        print(f"\n{self.allocator.get_courtroom_summary()}")
+        # Courtroom allocation summary
+        insights_lines.append("")
+        insights_lines.append(self.allocator.get_courtroom_summary())
 
-        # Generate comprehensive case status breakdown
+        # Comprehensive case status breakdown
         total_cases = len(self.cases)
         disposed_cases = [c for c in self.cases if c.status == CaseStatus.DISPOSED]
         scheduled_at_least_once = [
@@ -616,27 +623,29 @@ class CourtSim:
             c for c in scheduled_at_least_once if c.status != CaseStatus.DISPOSED
         ]
 
-        print("\n=== Case Status Breakdown ===")
-        print(f"Total cases in system: {total_cases:,}")
-        print("\nScheduling outcomes:")
-        print(
-            f"  Scheduled at least once: {len(scheduled_at_least_once):,} ({len(scheduled_at_least_once) / total_cases * 100:.1f}%)"
+        insights_lines.append("\n=== Case Status Breakdown ===")
+        insights_lines.append(f"Total cases in system: {total_cases:,}")
+        insights_lines.append("\nScheduling outcomes:")
+        insights_lines.append(
+            f"  Scheduled at least once: {len(scheduled_at_least_once):,} ({len(scheduled_at_least_once) / max(1, total_cases) * 100:.1f}%)"
         )
-        print(
-            f"    - Disposed: {len(disposed_cases):,} ({len(disposed_cases) / total_cases * 100:.1f}%)"
+        insights_lines.append(
+            f"    - Disposed: {len(disposed_cases):,} ({len(disposed_cases) / max(1, total_cases) * 100:.1f}%)"
         )
-        print(
-            f"    - Active (not disposed): {len(scheduled_but_not_disposed):,} ({len(scheduled_but_not_disposed) / total_cases * 100:.1f}%)"
+        insights_lines.append(
+            f"    - Active (not disposed): {len(scheduled_but_not_disposed):,} ({len(scheduled_but_not_disposed) / max(1, total_cases) * 100:.1f}%)"
         )
-        print(
-            f"  Never scheduled: {len(never_scheduled):,} ({len(never_scheduled) / total_cases * 100:.1f}%)"
+        insights_lines.append(
+            f"  Never scheduled: {len(never_scheduled):,} ({len(never_scheduled) / max(1, total_cases) * 100:.1f}%)"
         )
 
         if scheduled_at_least_once:
             avg_hearings = sum(c.hearing_count for c in scheduled_at_least_once) / len(
                 scheduled_at_least_once
             )
-            print(f"\nAverage hearings per scheduled case: {avg_hearings:.1f}")
+            insights_lines.append(
+                f"\nAverage hearings per scheduled case: {avg_hearings:.1f}"
+            )
 
         if disposed_cases:
             avg_hearings_to_disposal = sum(
@@ -645,9 +654,18 @@ class CourtSim:
             avg_days_to_disposal = sum(
                 (c.disposal_date - c.filed_date).days for c in disposed_cases
             ) / len(disposed_cases)
-            print("\nDisposal metrics:")
-            print(f"  Average hearings to disposal: {avg_hearings_to_disposal:.1f}")
-            print(f"  Average days to disposal: {avg_days_to_disposal:.0f}")
+            insights_lines.append("\nDisposal metrics:")
+            insights_lines.append(
+                f"  Average hearings to disposal: {avg_hearings_to_disposal:.1f}"
+            )
+            insights_lines.append(
+                f"  Average days to disposal: {avg_days_to_disposal:.0f}"
+            )
+
+        insights_text = "\n".join(insights_lines)
+
+        # Still echo to console for CLI users
+        print("\n" + insights_text)
 
         return CourtSimResult(
             hearings_total=self._hearings_total,
@@ -658,4 +676,5 @@ class CourtSim:
             end_date=working_days[-1] if working_days else self.cfg.start,
             ripeness_transitions=self._ripeness_transitions,
             unripe_filtered=self._unripe_filtered,
+            insights_text=insights_text,
         )

@@ -94,8 +94,13 @@ Efficiency:
   Utilization: {res.utilization:.2%}
   Avg hearings/day: {res.hearings_total / max(1, cfg.days):.2f}
 """
-
-    (run_dir / "report.txt").write_text(summary_text, encoding="utf-8")
+    # Merge engine insights into report.txt
+    insights_text = (getattr(res, "insights_text", "") or "").strip()
+    if insights_text:
+        full_report = summary_text.rstrip() + "\n\n" + insights_text + "\n"
+    else:
+        full_report = summary_text
+    (run_dir / "report.txt").write_text(full_report, encoding="utf-8")
 
     # -------------------------------------------------------
     # Locate generated CSVs (if they exist)
@@ -105,6 +110,7 @@ Efficiency:
 
     return {
         "summary": summary_text,
+        "insights": insights_text,
         "end_date": res.end_date,
         "metrics_path": metrics_path if metrics_path.exists() else None,
         "events_path": events_path if events_path.exists() else None,
