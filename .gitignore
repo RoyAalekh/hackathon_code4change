@@ -24,4 +24,13 @@ __pycache__/
 *.db
 *.bak
 *.swp
+.pdf
+.html
+.docx
+*.pptx
+*.xlsx
+*.csv
+*.tsv
+*.json
+.parquet
 
