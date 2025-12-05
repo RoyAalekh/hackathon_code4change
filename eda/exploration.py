@@ -74,11 +74,10 @@ def run_exploration() -> None:
     # --------------------------------------------------
     if "YEAR_FILED" in cases.columns:
         year_counts = cases.group_by("YEAR_FILED").agg(pl.len().alias("Count"))
-        fig2 = px.line(
+        fig2 = px.bar(
             year_counts.to_pandas(),
             x="YEAR_FILED",
             y="Count",
-            markers=True,
             title="Cases Filed by Year",
         )
         fig2.update_traces(line_color="royalblue")
