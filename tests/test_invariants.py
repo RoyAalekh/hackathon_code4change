@@ -1,8 +1,8 @@
 from datetime import date
 
-from scheduler.core.case import Case
-from scheduler.core.courtroom import Courtroom
-from scheduler.utils.calendar import CourtCalendar
+from src.core.case import Case
+from src.core.courtroom import Courtroom
+from src.utils.calendar import CourtCalendar
 
 
 def test_calendar_excludes_weekends():

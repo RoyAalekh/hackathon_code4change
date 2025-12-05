@@ -7,8 +7,8 @@ from datetime import date
 
 import pytest
 
-from scheduler.data.case_generator import CaseGenerator
-from scheduler.simulation.engine import CourtSim, CourtSimConfig
+from src.data.case_generator import CaseGenerator
+from src.simulation.engine import CourtSim, CourtSimConfig
 
 
 @pytest.mark.integration
@@ -25,7 +25,7 @@ class TestSimulationBasics:
             courtrooms=2,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, small_case_set)
@@ -44,7 +44,7 @@ class TestSimulationBasics:
             courtrooms=3,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, sample_cases)
@@ -64,14 +64,16 @@ class TestSimulationBasics:
             courtrooms=5,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, sample_cases)
         result = sim.run()
 
         assert result.hearings_total > 0
-        assert result.hearings_heard + result.hearings_adjourned == result.hearings_total
+        assert (
+            result.hearings_heard + result.hearings_adjourned == result.hearings_total
+        )
         # Check disposal rate is reasonable
         if result.hearings_total > 0:
             disposal_rate = result.disposals / len(sample_cases)
@@ -92,7 +94,7 @@ class TestOutcomeTracking:
             courtrooms=2,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, small_case_set)
@@ -113,7 +115,7 @@ class TestOutcomeTracking:
             courtrooms=5,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, sample_cases)
@@ -133,7 +135,7 @@ class TestOutcomeTracking:
             courtrooms=3,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, sample_cases)
@@ -157,7 +159,7 @@ class TestStageProgression:
             courtrooms=5,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         # Record initial stages
@@ -168,7 +170,8 @@ class TestStageProgression:
 
         # Check if any cases progressed
         progressed = sum(
-            1 for case in sample_cases
+            1
+            for case in sample_cases
             if case.current_stage != initial_stages.get(case.case_id)
         )
 
@@ -184,14 +187,15 @@ class TestStageProgression:
             courtrooms=5,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, sample_cases)
         sim.run()
 
         # Check disposed cases are in terminal stages
-        from scheduler.data.config import TERMINAL_STAGES
+        from src.data.config import TERMINAL_STAGES
+
         for case in sample_cases:
             if case.is_disposed():
                 assert case.current_stage in TERMINAL_STAGES
@@ -211,7 +215,7 @@ class TestRipenessIntegration:
             courtrooms=5,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, sample_cases)
@@ -223,7 +227,9 @@ class TestRipenessIntegration:
     def test_unripe_filtering(self, temp_output_dir):
         """Test that unripe cases are filtered from scheduling."""
         # Create mix of ripe and unripe cases
-        generator = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 1, 10), seed=42)
+        generator = CaseGenerator(
+            start=date(2024, 1, 1), end=date(2024, 1, 10), seed=42
+        )
         cases = generator.generate(50)
 
         # Mark some as unripe
@@ -239,7 +245,7 @@ class TestRipenessIntegration:
             courtrooms=3,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, cases)
@@ -263,7 +269,7 @@ class TestSimulationEdgeCases:
             courtrooms=2,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, [])
@@ -291,7 +297,7 @@ class TestSimulationEdgeCases:
             courtrooms=2,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, cases)
@@ -311,7 +317,7 @@ class TestSimulationEdgeCases:
                 courtrooms=2,
                 daily_capacity=50,
                 policy="readiness",
-                log_dir=temp_output_dir
+                log_dir=temp_output_dir,
             )
 
     @pytest.mark.failure
@@ -325,7 +331,7 @@ class TestSimulationEdgeCases:
                 courtrooms=2,
                 daily_capacity=50,
                 policy="readiness",
-                log_dir=temp_output_dir
+                log_dir=temp_output_dir,
             )
 
 
@@ -343,7 +349,7 @@ class TestEventLogging:
             courtrooms=2,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, small_case_set)
@@ -354,6 +360,7 @@ class TestEventLogging:
         if events_file.exists():
             # Verify it's readable
             import pandas as pd
+
             df = pd.read_csv(events_file)
             assert len(df) >= 0
 
@@ -366,7 +373,7 @@ class TestEventLogging:
             courtrooms=2,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir
+            log_dir=temp_output_dir,
         )
 
         sim = CourtSim(config, small_case_set)
@@ -376,6 +383,7 @@ class TestEventLogging:
         events_file = temp_output_dir / "events.csv"
         if events_file.exists():
             import pandas as pd
+
             pd.read_csv(events_file)
             # Event count should match or be close to hearings_total
             # (may have additional events for filings, etc.)
@@ -395,7 +403,7 @@ class TestPolicyComparison:
             courtrooms=3,
             daily_capacity=50,
             policy="fifo",
-            log_dir=temp_output_dir / "fifo"
+            log_dir=temp_output_dir / "fifo",
         )
 
         sim = CourtSim(config, sample_cases.copy())
@@ -412,7 +420,7 @@ class TestPolicyComparison:
             courtrooms=3,
             daily_capacity=50,
             policy="age",
-            log_dir=temp_output_dir / "age"
+            log_dir=temp_output_dir / "age",
         )
 
         sim = CourtSim(config, sample_cases.copy())
@@ -429,11 +437,10 @@ class TestPolicyComparison:
             courtrooms=3,
             daily_capacity=50,
             policy="readiness",
-            log_dir=temp_output_dir / "readiness"
+            log_dir=temp_output_dir / "readiness",
         )
 
         sim = CourtSim(config, sample_cases.copy())
         result = sim.run()
 
         assert result.hearings_total > 0
-

@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from scheduler.core.case import Case, CaseStatus
+from src.core.case import Case, CaseStatus
 
 
 @pytest.mark.unit
@@ -20,7 +20,7 @@ class TestCaseCreation:
             case_id="TEST-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         assert case.case_id == "TEST-001"
@@ -42,7 +42,7 @@ class TestCaseCreation:
             age_days=100,
             hearing_count=5,
             status=CaseStatus.ACTIVE,
-            is_urgent=True
+            is_urgent=True,
         )
 
         assert case.last_hearing_date == date(2024, 2, 15)
@@ -59,7 +59,7 @@ class TestCaseCreation:
             case_id="NEW-001",
             case_type="CP",
             filed_date=today,
-            current_stage="PRE-ADMISSION"
+            current_stage="PRE-ADMISSION",
         )
 
         case.update_age(today)
@@ -74,7 +74,7 @@ class TestCaseCreation:
             case_id="INVALID-001",
             case_type="INVALID_TYPE",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
         # Case is created but type validation could be added in future
         assert case.case_type == "INVALID_TYPE"
@@ -90,7 +90,7 @@ class TestCaseAgeCalculation:
             case_id="AGE-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         # Update age to Feb 1 (31 days later)
@@ -103,7 +103,7 @@ class TestCaseAgeCalculation:
             case_id="OLD-001",
             case_type="RSA",
             filed_date=date(2022, 1, 1),
-            current_stage="EVIDENCE"
+            current_stage="EVIDENCE",
         )
 
         case.update_age(date(2024, 1, 1))
@@ -115,7 +115,7 @@ class TestCaseAgeCalculation:
             case_id="GAP-001",
             case_type="CRP",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         # Record hearing on Jan 15
@@ -136,7 +136,7 @@ class TestHearingManagement:
             case_id="HEAR-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         case.record_hearing(date(2024, 1, 15), was_heard=True, outcome="ARGUMENTS")
@@ -155,7 +155,7 @@ class TestStageProgression:
             case_id="PROG-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         case.progress_to_stage("EVIDENCE", date(2024, 2, 1))
@@ -168,7 +168,7 @@ class TestStageProgression:
             case_id="TERM-001",
             case_type="CP",
             filed_date=date(2024, 1, 1),
-            current_stage="ARGUMENTS"
+            current_stage="ARGUMENTS",
         )
 
         case.progress_to_stage("ORDERS", date(2024, 3, 1))
@@ -181,7 +181,7 @@ class TestStageProgression:
             case_id="SEQ-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="PRE-ADMISSION"
+            current_stage="PRE-ADMISSION",
         )
 
         stages = ["ADMISSION", "EVIDENCE", "ARGUMENTS", "ORDERS"]
@@ -203,7 +203,7 @@ class TestCaseScoring:
             case_id="SCORE-001",
             case_type="RSA",
             filed_date=date(2023, 1, 1),
-            current_stage="ARGUMENTS"
+            current_stage="ARGUMENTS",
         )
 
         case.update_age(date(2024, 1, 1))  # 1 year old
@@ -221,7 +221,7 @@ class TestCaseScoring:
             case_id="READY-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ARGUMENTS"
+            current_stage="ARGUMENTS",
         )
 
         # Add some hearings
@@ -229,7 +229,7 @@ class TestCaseScoring:
             case.record_hearing(
                 date(2024, 1, 1) + timedelta(days=30 * i),
                 was_heard=True,
-                outcome="HEARD"
+                outcome="HEARD",
             )
 
         readiness = case.compute_readiness_score()
@@ -244,7 +244,7 @@ class TestCaseScoring:
             case_type="CP",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            is_urgent=False
+            is_urgent=False,
         )
 
         urgent_case = Case(
@@ -252,7 +252,7 @@ class TestCaseScoring:
             case_type="CP",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            is_urgent=True
+            is_urgent=True,
         )
 
         # Update ages to same date
@@ -269,7 +269,7 @@ class TestCaseScoring:
             case_id="ADJ-BOOST-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ARGUMENTS"
+            current_stage="ARGUMENTS",
         )
 
         # Record adjourned hearing
@@ -297,7 +297,7 @@ class TestCaseReadiness:
             case_id="READY-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ARGUMENTS"
+            current_stage="ARGUMENTS",
         )
 
         # Record hearing 30 days ago
@@ -313,7 +313,7 @@ class TestCaseReadiness:
             case_id="NOT-READY-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         # Record hearing 3 days ago
@@ -329,7 +329,7 @@ class TestCaseReadiness:
             case_id="FIRST-001",
             case_type="CP",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         case.update_age(date(2024, 1, 15))
@@ -348,7 +348,7 @@ class TestCaseStatus:
             case_id="STATUS-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="PRE-ADMISSION"
+            current_stage="PRE-ADMISSION",
         )
 
         assert case.status == CaseStatus.PENDING
@@ -359,7 +359,7 @@ class TestCaseStatus:
             case_id="DISPOSE-001",
             case_type="CP",
             filed_date=date(2024, 1, 1),
-            current_stage="ORDERS"
+            current_stage="ORDERS",
         )
 
         case.status = CaseStatus.DISPOSED
@@ -387,7 +387,7 @@ class TestCaseSerialization:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=3
+            hearing_count=3,
         )
 
         case_dict = case.to_dict()
@@ -404,7 +404,7 @@ class TestCaseSerialization:
             case_id="REPR-001",
             case_type="CRP",
             filed_date=date(2024, 1, 1),
-            current_stage="ARGUMENTS"
+            current_stage="ARGUMENTS",
         )
 
         repr_str = repr(case)
@@ -425,7 +425,7 @@ class TestCaseEdgeCases:
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
             last_hearing_date=None,
-            is_urgent=None
+            is_urgent=None,
         )
 
         assert case.last_hearing_date is None
@@ -437,7 +437,7 @@ class TestCaseEdgeCases:
             case_id="BOUNDARY-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         # Exactly 0 days
@@ -460,7 +460,7 @@ class TestCaseEdgeCases:
             case_id="SAME-DAY-001",
             case_type="CP",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         # Record hearing on filed date
@@ -482,7 +482,7 @@ class TestCaseFailureScenarios:
             case_id="FUTURE-001",
             case_type="RSA",
             filed_date=future_date,
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
 
         # Case is created but update_age should handle gracefully
@@ -496,7 +496,7 @@ class TestCaseFailureScenarios:
             case_type="CP",
             filed_date=date(2024, 1, 1),
             current_stage="ORDERS",
-            status=CaseStatus.DISPOSED
+            status=CaseStatus.DISPOSED,
         )
 
         # Should still be able to query properties
@@ -504,6 +504,3 @@ class TestCaseFailureScenarios:
 
         # Recording hearing on disposed case (implementation dependent)
         # Some implementations might allow, others might not
-
-
-

@@ -7,8 +7,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from scheduler.core.case import Case
-from scheduler.simulation.policies.readiness import ReadinessPolicy
+from src.core.case import Case
+from src.simulation.policies.readiness import ReadinessPolicy
 
 
 @pytest.mark.unit
@@ -28,7 +28,7 @@ class TestReadinessPolicy:
             case_type="RSA",
             filed_date=date(2024, 3, 1),
             current_stage="PRE-ADMISSION",
-            hearing_count=0
+            hearing_count=0,
         )
 
         # Medium readiness: some hearings, moderate age
@@ -37,11 +37,17 @@ class TestReadinessPolicy:
             case_type="CRP",
             filed_date=date(2024, 1, 15),
             current_stage="ADMISSION",
-            hearing_count=3
+            hearing_count=3,
         )
-        medium_readiness.record_hearing(date(2024, 2, 1), was_heard=True, outcome="HEARD")
-        medium_readiness.record_hearing(date(2024, 2, 15), was_heard=True, outcome="HEARD")
-        medium_readiness.record_hearing(date(2024, 3, 1), was_heard=True, outcome="HEARD")
+        medium_readiness.record_hearing(
+            date(2024, 2, 1), was_heard=True, outcome="HEARD"
+        )
+        medium_readiness.record_hearing(
+            date(2024, 2, 15), was_heard=True, outcome="HEARD"
+        )
+        medium_readiness.record_hearing(
+            date(2024, 3, 1), was_heard=True, outcome="HEARD"
+        )
 
         # High readiness: many hearings, advanced stage
         high_readiness = Case(
@@ -49,13 +55,13 @@ class TestReadinessPolicy:
             case_type="RSA",
             filed_date=date(2023, 6, 1),
             current_stage="ARGUMENTS",
-            hearing_count=10
+            hearing_count=10,
         )
         for i in range(10):
             high_readiness.record_hearing(
                 date(2023, 7, 1) + timedelta(days=30 * i),
                 was_heard=True,
-                outcome="HEARD"
+                outcome="HEARD",
             )
 
         cases = [low_readiness, medium_readiness, high_readiness]
@@ -82,20 +88,24 @@ class TestReadinessPolicy:
                 case_type="RSA",
                 filed_date=date(2024, 1, 1),
                 current_stage="ADMISSION",
-                hearing_count=5
+                hearing_count=5,
             ),
             Case(
                 case_id="CASE-B",
                 case_type="RSA",
                 filed_date=date(2024, 1, 1),
                 current_stage="ADMISSION",
-                hearing_count=5
+                hearing_count=5,
             ),
         ]
 
         for case in cases:
             for i in range(5):
-                case.record_hearing(date(2024, 2, 1) + timedelta(days=30 * i), was_heard=True, outcome="HEARD")
+                case.record_hearing(
+                    date(2024, 2, 1) + timedelta(days=30 * i),
+                    was_heard=True,
+                    outcome="HEARD",
+                )
             case.update_age(date(2024, 12, 1))
 
         prioritized = policy.prioritize(cases, current_date=date(2024, 12, 1))
@@ -121,7 +131,7 @@ class TestReadinessPolicy:
                 case_type="RSA",
                 filed_date=date(2024, 1, 1),
                 current_stage="ADMISSION",
-                hearing_count=3
+                hearing_count=3,
             )
         ]
 
@@ -135,7 +145,12 @@ class TestReadinessPolicy:
 
         # Create brand new cases
         cases = [
-            Case(case_id=f"NEW-{i}", case_type="RSA", filed_date=date(2024, 1, 1), current_stage="PRE-ADMISSION")
+            Case(
+                case_id=f"NEW-{i}",
+                case_type="RSA",
+                filed_date=date(2024, 1, 1),
+                current_stage="PRE-ADMISSION",
+            )
             for i in range(5)
         ]
 
@@ -156,10 +171,14 @@ class TestReadinessPolicy:
                 case_type="RSA",
                 filed_date=date(2023, 1, 1),
                 current_stage="ARGUMENTS",
-                hearing_count=20
+                hearing_count=20,
             )
             for j in range(20):
-                case.record_hearing(date(2023, 2, 1) + timedelta(days=30 * j), was_heard=True, outcome="HEARD")
+                case.record_hearing(
+                    date(2023, 2, 1) + timedelta(days=30 * j),
+                    was_heard=True,
+                    outcome="HEARD",
+                )
             case.update_age(date(2024, 4, 1))
             cases.append(case)
 
@@ -178,13 +197,13 @@ class TestReadinessPolicy:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=10
+            hearing_count=10,
         )
         for i in range(10):
             adjourned_case.record_hearing(
                 date(2024, 2, 1) + timedelta(days=30 * i),
                 was_heard=False,
-                outcome="ADJOURNED"
+                outcome="ADJOURNED",
             )
 
         # Case with productive hearings (higher readiness expected)
@@ -193,13 +212,13 @@ class TestReadinessPolicy:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ARGUMENTS",
-            hearing_count=10
+            hearing_count=10,
         )
         for i in range(10):
             productive_case.record_hearing(
                 date(2024, 2, 1) + timedelta(days=30 * i),
                 was_heard=True,
-                outcome="ARGUMENTS"
+                outcome="ARGUMENTS",
             )
 
         cases = [adjourned_case, productive_case]
@@ -213,10 +232,12 @@ class TestReadinessPolicy:
 
     def test_large_case_set(self):
         """Test readiness policy with large dataset."""
-        from scheduler.data.case_generator import CaseGenerator
+        from src.data.case_generator import CaseGenerator
 
         policy = ReadinessPolicy()
-        generator = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 12, 31), seed=42)
+        generator = CaseGenerator(
+            start=date(2024, 1, 1), end=date(2024, 12, 31), seed=42
+        )
         cases = generator.generate(500, stage_mix_auto=True)
 
         # Update ages
@@ -233,5 +254,3 @@ class TestReadinessPolicy:
         # readiness_scores = [case.compute_readiness_score() for case in prioritized]
         # for i in range(len(readiness_scores) - 1):
         #     assert readiness_scores[i] >= readiness_scores[i + 1]
-
-

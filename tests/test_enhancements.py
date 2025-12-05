@@ -34,12 +34,12 @@ def log_test(name: str, passed: bool, details: str = ""):
 
 def test_pr2_override_validation():
     """Test PR #2: Override validation preserves original list and tracks rejections."""
-    from scheduler.control.overrides import Override, OverrideType
-    from scheduler.core.algorithm import SchedulingAlgorithm
-    from scheduler.core.courtroom import Courtroom
-    from scheduler.data.case_generator import CaseGenerator
-    from scheduler.simulation.allocator import CourtroomAllocator
-    from scheduler.simulation.policies.readiness import ReadinessPolicy
+    from src.control.overrides import Override, OverrideType
+    from src.core.algorithm import SchedulingAlgorithm
+    from src.core.courtroom import Courtroom
+    from src.data.case_generator import CaseGenerator
+    from src.simulation.allocator import CourtroomAllocator
+    from src.simulation.policies.readiness import ReadinessPolicy
 
     try:
         # Generate test cases
@@ -54,7 +54,7 @@ def test_pr2_override_validation():
                 case_id=cases[0].case_id,
                 judge_id="TEST-JUDGE",
                 timestamp=datetime.now(),
-                new_priority=0.95
+                new_priority=0.95,
             ),
             Override(
                 override_id="test-2",
@@ -62,8 +62,8 @@ def test_pr2_override_validation():
                 case_id="INVALID-CASE-ID",  # Invalid case
                 judge_id="TEST-JUDGE",
                 timestamp=datetime.now(),
-                new_priority=0.85
-            )
+                new_priority=0.85,
+            ),
         ]
 
         original_count = len(test_overrides)
@@ -79,20 +79,25 @@ def test_pr2_override_validation():
             cases=cases,
             courtrooms=courtrooms,
             current_date=date(2024, 1, 15),
-            overrides=test_overrides
+            overrides=test_overrides,
         )
 
         # Verify original list unchanged
-        assert len(test_overrides) == original_count, "Original override list was mutated"
+        assert len(test_overrides) == original_count, (
+            "Original override list was mutated"
+        )
 
         # Verify rejection tracking exists (even if empty for valid overrides)
-        assert hasattr(result, 'override_rejections'), "No override_rejections field"
+        assert hasattr(result, "override_rejections"), "No override_rejections field"
 
         # Verify applied overrides tracked
-        assert hasattr(result, 'applied_overrides'), "No applied_overrides field"
+        assert hasattr(result, "applied_overrides"), "No applied_overrides field"
 
-        log_test("PR #2: Override validation", True,
-                f"Applied: {len(result.applied_overrides)}, Rejected: {len(result.override_rejections)}")
+        log_test(
+            "PR #2: Override validation",
+            True,
+            f"Applied: {len(result.applied_overrides)}, Rejected: {len(result.override_rejections)}",
+        )
         return True
 
     except Exception as e:
@@ -102,11 +107,11 @@ def test_pr2_override_validation():
 
 def test_pr2_flag_cleanup():
     """Test PR #2: Temporary case flags are cleared after scheduling."""
-    from scheduler.core.algorithm import SchedulingAlgorithm
-    from scheduler.core.courtroom import Courtroom
-    from scheduler.data.case_generator import CaseGenerator
-    from scheduler.simulation.allocator import CourtroomAllocator
-    from scheduler.simulation.policies.readiness import ReadinessPolicy
+    from src.core.algorithm import SchedulingAlgorithm
+    from src.core.courtroom import Courtroom
+    from src.data.case_generator import CaseGenerator
+    from src.simulation.allocator import CourtroomAllocator
+    from src.simulation.policies.readiness import ReadinessPolicy
 
     try:
         gen = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 1, 10), seed=42)
@@ -125,10 +130,14 @@ def test_pr2_flag_cleanup():
         algorithm.schedule_day(cases, courtrooms, date(2024, 1, 15))
 
         # Verify flag cleared
-        assert not hasattr(test_case, '_priority_override') or test_case._priority_override is None, \
-            "Priority override flag not cleared"
+        assert (
+            not hasattr(test_case, "_priority_override")
+            or test_case._priority_override is None
+        ), "Priority override flag not cleared"
 
-        log_test("PR #2: Flag cleanup", True, "Temporary flags cleared after scheduling")
+        log_test(
+            "PR #2: Flag cleanup", True, "Temporary flags cleared after scheduling"
+        )
         return True
 
     except Exception as e:
@@ -138,12 +147,12 @@ def test_pr2_flag_cleanup():
 
 def test_pr3_unknown_ripeness():
     """Test PR #3: UNKNOWN ripeness status exists and is used."""
-    from scheduler.core.ripeness import RipenessClassifier, RipenessStatus
-    from scheduler.data.case_generator import CaseGenerator
+    from src.core.ripeness import RipenessClassifier, RipenessStatus
+    from src.data.case_generator import CaseGenerator
 
     try:
         # Verify UNKNOWN status exists
-        assert hasattr(RipenessStatus, 'UNKNOWN'), "RipenessStatus.UNKNOWN not found"
+        assert hasattr(RipenessStatus, "UNKNOWN"), "RipenessStatus.UNKNOWN not found"
 
         # Create case with ambiguous ripeness
         gen = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 1, 10), seed=42)
@@ -159,8 +168,9 @@ def test_pr3_unknown_ripeness():
         ripeness = RipenessClassifier.classify(test_case, date(2024, 1, 15))
 
         # Should default to UNKNOWN when no evidence
-        assert ripeness == RipenessStatus.UNKNOWN or not ripeness.is_ripe(), \
+        assert ripeness == RipenessStatus.UNKNOWN or not ripeness.is_ripe(), (
             "Ambiguous case did not get UNKNOWN or non-RIPE status"
+        )
 
         log_test("PR #3: UNKNOWN ripeness", True, f"Status: {ripeness.value}")
         return True
@@ -184,15 +194,18 @@ def test_pr6_parameter_fallback():
             "adjournment_proxies.csv",
             "court_capacity_global.json",
             "stage_transition_entropy.csv",
-            "case_type_summary.csv"
+            "case_type_summary.csv",
         ]
 
         for file in expected_files:
             file_path = defaults_dir / file
             assert file_path.exists(), f"Default file missing: {file}"
 
-        log_test("PR #6: Parameter fallback", True,
-                f"Found {len(expected_files)} default parameter files")
+        log_test(
+            "PR #6: Parameter fallback",
+            True,
+            f"Found {len(expected_files)} default parameter files",
+        )
         return True
 
     except Exception as e:
@@ -204,7 +217,7 @@ def test_pr4_rl_constraints():
     """Test PR #4: RL training uses SchedulingAlgorithm with constraints."""
     from rl.config import RLTrainingConfig
     from rl.training import RLTrainingEnvironment
-    from scheduler.data.case_generator import CaseGenerator
+    from src.data.case_generator import CaseGenerator
 
     try:
         # Create training environment
@@ -219,21 +232,20 @@ def test_pr4_rl_constraints():
             daily_capacity_per_courtroom=50,
             enforce_min_gap=True,
             cap_daily_allocations=True,
-            apply_judge_preferences=True
+            apply_judge_preferences=True,
         )
 
         env = RLTrainingEnvironment(
-            cases=cases,
-            start_date=date(2024, 1, 1),
-            horizon_days=10,
-            rl_config=config
+            cases=cases, start_date=date(2024, 1, 1), horizon_days=10, rl_config=config
         )
 
         # Verify SchedulingAlgorithm components exist
-        assert hasattr(env, 'algorithm'), "No SchedulingAlgorithm in training environment"
-        assert hasattr(env, 'courtrooms'), "No courtrooms in training environment"
-        assert hasattr(env, 'allocator'), "No allocator in training environment"
-        assert hasattr(env, 'policy'), "No policy in training environment"
+        assert hasattr(env, "algorithm"), (
+            "No SchedulingAlgorithm in training environment"
+        )
+        assert hasattr(env, "courtrooms"), "No courtrooms in training environment"
+        assert hasattr(env, "allocator"), "No allocator in training environment"
+        assert hasattr(env, "policy"), "No policy in training environment"
 
         # Test step with agent decisions
         agent_decisions = {cases[0].case_id: 1, cases[1].case_id: 1}
@@ -241,8 +253,11 @@ def test_pr4_rl_constraints():
 
         assert len(rewards) >= 0, "No rewards returned from step"
 
-        log_test("PR #4: RL constraints", True,
-                f"Environment has algorithm, courtrooms, allocator. Capacity enforced: {config.cap_daily_allocations}")
+        log_test(
+            "PR #4: RL constraints",
+            True,
+            f"Environment has algorithm, courtrooms, allocator. Capacity enforced: {config.cap_daily_allocations}",
+        )
         return True
 
     except Exception as e:
@@ -254,21 +269,24 @@ def test_pr5_shared_rewards():
     """Test PR #5: Shared reward helper exists and is used."""
     from rl.rewards import EpisodeRewardHelper
     from rl.training import RLTrainingEnvironment
-    from scheduler.data.case_generator import CaseGenerator
+    from src.data.case_generator import CaseGenerator
 
     try:
         # Verify EpisodeRewardHelper exists
         helper = EpisodeRewardHelper(total_cases=100)
-        assert hasattr(helper, 'compute_case_reward'), "No compute_case_reward method"
+        assert hasattr(helper, "compute_case_reward"), "No compute_case_reward method"
 
         # Verify training environment uses it
         gen = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 1, 10), seed=42)
         cases = gen.generate(50)
 
         env = RLTrainingEnvironment(cases, date(2024, 1, 1), 10)
-        assert hasattr(env, 'reward_helper'), "Training environment doesn't use reward_helper"
-        assert isinstance(env.reward_helper, EpisodeRewardHelper), \
+        assert hasattr(env, "reward_helper"), (
+            "Training environment doesn't use reward_helper"
+        )
+        assert isinstance(env.reward_helper, EpisodeRewardHelper), (
             "reward_helper is not EpisodeRewardHelper instance"
+        )
 
         # Test reward computation
         test_case = cases[0]
@@ -277,12 +295,16 @@ def test_pr5_shared_rewards():
             was_scheduled=True,
             hearing_outcome="PROGRESS",
             current_date=date(2024, 1, 15),
-            previous_gap_days=30
+            previous_gap_days=30,
         )
 
         assert isinstance(reward, float), "Reward is not a float"
 
-        log_test("PR #5: Shared rewards", True, f"Helper integrated, sample reward: {reward:.2f}")
+        log_test(
+            "PR #5: Shared rewards",
+            True,
+            f"Helper integrated, sample reward: {reward:.2f}",
+        )
         return True
 
     except Exception as e:
@@ -292,7 +314,7 @@ def test_pr5_shared_rewards():
 
 def test_pr7_metadata_tracking():
     """Test PR #7: Output metadata tracking."""
-    from scheduler.utils.output_manager import OutputManager
+    from src.utils.output_manager import OutputManager
 
     try:
         # Create output manager
@@ -300,10 +322,14 @@ def test_pr7_metadata_tracking():
         output.create_structure()
 
         # Verify metadata methods exist
-        assert hasattr(output, 'record_eda_metadata'), "No record_eda_metadata method"
-        assert hasattr(output, 'save_training_stats'), "No save_training_stats method"
-        assert hasattr(output, 'save_evaluation_stats'), "No save_evaluation_stats method"
-        assert hasattr(output, 'record_simulation_kpis'), "No record_simulation_kpis method"
+        assert hasattr(output, "record_eda_metadata"), "No record_eda_metadata method"
+        assert hasattr(output, "save_training_stats"), "No save_training_stats method"
+        assert hasattr(output, "save_evaluation_stats"), (
+            "No save_evaluation_stats method"
+        )
+        assert hasattr(output, "record_simulation_kpis"), (
+            "No record_simulation_kpis method"
+        )
 
         # Verify run_record file created
         assert output.run_record_file.exists(), "run_record.json not created"
@@ -313,19 +339,23 @@ def test_pr7_metadata_tracking():
             version="test_v1",
             used_cached=False,
             params_path=Path("test_params"),
-            figures_path=Path("test_figures")
+            figures_path=Path("test_figures"),
         )
 
         # Verify metadata was written
         import json
-        with open(output.run_record_file, 'r') as f:
+
+        with open(output.run_record_file, "r") as f:
             record = json.load(f)
 
-        assert 'sections' in record, "No sections in run_record"
-        assert 'eda' in record['sections'], "EDA metadata not recorded"
+        assert "sections" in record, "No sections in run_record"
+        assert "eda" in record["sections"], "EDA metadata not recorded"
 
-        log_test("PR #7: Metadata tracking", True,
-                f"Run record created with {len(record['sections'])} sections")
+        log_test(
+            "PR #7: Metadata tracking",
+            True,
+            f"Run record created with {len(record['sections'])} sections",
+        )
         return True
 
     except Exception as e:

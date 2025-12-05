@@ -15,20 +15,24 @@ from typing import List
 
 import pytest
 
-from scheduler.core.case import Case, CaseStatus
-from scheduler.core.courtroom import Courtroom
-from scheduler.data.case_generator import CaseGenerator
-from scheduler.data.param_loader import ParameterLoader
+from src.core.case import Case, CaseStatus
+from src.core.courtroom import Courtroom
+from src.data.case_generator import CaseGenerator
+from src.data.param_loader import ParameterLoader
 
 
 # Test markers
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line("markers", "unit: Unit tests for individual components")
-    config.addinivalue_line("markers", "integration: Integration tests for multi-component workflows")
+    config.addinivalue_line(
+        "markers", "integration: Integration tests for multi-component workflows"
+    )
     config.addinivalue_line("markers", "rl: Reinforcement learning tests")
     config.addinivalue_line("markers", "simulation: Simulation engine tests")
-    config.addinivalue_line("markers", "edge_case: Edge case and boundary condition tests")
+    config.addinivalue_line(
+        "markers", "edge_case: Edge case and boundary condition tests"
+    )
     config.addinivalue_line("markers", "failure: Failure scenario tests")
     config.addinivalue_line("markers", "slow: Slow-running tests (>5 seconds)")
 
@@ -40,11 +44,7 @@ def sample_cases() -> List[Case]:
     Returns:
         List of 100 cases with diverse types, stages, and ages
     """
-    generator = CaseGenerator(
-        start=date(2024, 1, 1),
-        end=date(2024, 3, 31),
-        seed=42
-    )
+    generator = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 3, 31), seed=42)
     cases = generator.generate(100, stage_mix_auto=True)
     return cases
 
@@ -56,11 +56,7 @@ def small_case_set() -> List[Case]:
     Returns:
         List of 10 cases
     """
-    generator = CaseGenerator(
-        start=date(2024, 1, 1),
-        end=date(2024, 1, 10),
-        seed=42
-    )
+    generator = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 1, 10), seed=42)
     cases = generator.generate(10)
     return cases
 
@@ -80,7 +76,7 @@ def single_case() -> Case:
         last_hearing_date=None,
         age_days=30,
         hearing_count=0,
-        status=CaseStatus.PENDING
+        status=CaseStatus.PENDING,
     )
 
 
@@ -99,12 +95,12 @@ def ripe_case() -> Case:
         last_hearing_date=date(2024, 2, 1),
         age_days=90,
         hearing_count=5,
-        status=CaseStatus.ACTIVE
+        status=CaseStatus.ACTIVE,
     )
     # Set additional attributes that may be needed
-    if hasattr(case, 'service_status'):
+    if hasattr(case, "service_status"):
         case.service_status = "SERVED"
-    if hasattr(case, 'compliance_status'):
+    if hasattr(case, "compliance_status"):
         case.compliance_status = "COMPLIED"
     return case
 
@@ -124,12 +120,12 @@ def unripe_case() -> Case:
         last_hearing_date=None,
         age_days=15,
         hearing_count=1,
-        status=CaseStatus.PENDING
+        status=CaseStatus.PENDING,
     )
     # Set additional attributes
-    if hasattr(case, 'service_status'):
+    if hasattr(case, "service_status"):
         case.service_status = "PENDING"
-    if hasattr(case, 'last_hearing_purpose'):
+    if hasattr(case, "last_hearing_purpose"):
         case.last_hearing_purpose = "FOR ISSUE OF SUMMONS"
     return case
 
@@ -216,7 +212,7 @@ def disposed_case() -> Case:
         last_hearing_date=date(2024, 3, 15),
         age_days=180,
         hearing_count=8,
-        status=CaseStatus.DISPOSED
+        status=CaseStatus.DISPOSED,
     )
     return case
 
@@ -236,7 +232,7 @@ def aged_case() -> Case:
         last_hearing_date=date(2024, 5, 1),
         age_days=800,
         hearing_count=25,
-        status=CaseStatus.ACTIVE
+        status=CaseStatus.ACTIVE,
     )
     return case
 
@@ -257,12 +253,13 @@ def urgent_case() -> Case:
         age_days=5,
         hearing_count=0,
         status=CaseStatus.PENDING,
-        is_urgent=True
+        is_urgent=True,
     )
     return case
 
 
 # Helper functions for tests
+
 
 def assert_valid_case(case: Case):
     """Assert that a case has all required fields and valid values.
@@ -294,7 +291,7 @@ def create_case_with_hearings(n_hearings: int, days_between: int = 30) -> Case:
         case_type="RSA",
         filed_date=date(2024, 1, 1),
         current_stage="ARGUMENTS",
-        status=CaseStatus.ACTIVE
+        status=CaseStatus.ACTIVE,
     )
 
     current_date = date(2024, 1, 1)

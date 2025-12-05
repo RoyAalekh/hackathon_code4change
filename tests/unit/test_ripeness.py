@@ -8,8 +8,8 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-from scheduler.core.case import Case
-from scheduler.core.ripeness import RipenessClassifier, RipenessStatus
+from src.core.case import Case
+from src.core.ripeness import RipenessClassifier, RipenessStatus
 
 
 @pytest.mark.unit
@@ -39,7 +39,7 @@ class TestRipenessClassification:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=2
+            hearing_count=2,
         )
         case.purpose_of_hearing = "STAY APPLICATION PENDING"
         case.service_status = "SERVED"
@@ -56,7 +56,7 @@ class TestRipenessClassification:
             case_type="CRP",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=3
+            hearing_count=3,
         )
         case.purpose_of_hearing = "APPEARANCE OF PARTIES"
         case.service_status = "SERVED"
@@ -73,7 +73,7 @@ class TestRipenessClassification:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="EVIDENCE",
-            hearing_count=5
+            hearing_count=5,
         )
         case.purpose_of_hearing = "FOR PRODUCTION OF DOCUMENTS"
         case.service_status = "SERVED"
@@ -90,7 +90,7 @@ class TestRipenessClassification:
             case_type="MISC.CVL",
             filed_date=date(2024, 1, 1),
             current_stage="OTHER",
-            hearing_count=0
+            hearing_count=0,
         )
         # No clear indicators
         case.service_status = None
@@ -116,7 +116,7 @@ class TestRipenessKeywords:
                 case_type="RSA",
                 filed_date=date(2024, 1, 1),
                 current_stage="PRE-ADMISSION",
-                hearing_count=1
+                hearing_count=1,
             )
             case.purpose_of_hearing = f"FOR {keyword}"
 
@@ -133,7 +133,7 @@ class TestRipenessKeywords:
                 case_type="RSA",
                 filed_date=date(2024, 1, 1),
                 current_stage="ARGUMENTS",
-                hearing_count=5
+                hearing_count=5,
             )
             case.service_status = "SERVED"
             case.purpose_of_hearing = keyword
@@ -149,7 +149,7 @@ class TestRipenessKeywords:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ARGUMENTS",
-            hearing_count=3
+            hearing_count=3,
         )
         case.purpose_of_hearing = "ARGUMENTS - PENDING SUMMONS"
         case.service_status = "PARTIAL"
@@ -176,7 +176,7 @@ class TestRipenessThresholds:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=min_hearings - 1
+            hearing_count=min_hearings - 1,
         )
         case_below.service_status = "SERVED"
 
@@ -186,7 +186,7 @@ class TestRipenessThresholds:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ARGUMENTS",
-            hearing_count=min_hearings
+            hearing_count=min_hearings,
         )
         case_at.service_status = "SERVED"
         case_at.purpose_of_hearing = "ARGUMENTS"
@@ -218,10 +218,7 @@ class TestRipenessThresholds:
         """Test updating multiple thresholds at once."""
         original_thresholds = RipenessClassifier.get_current_thresholds()
 
-        new_thresholds = {
-            "MIN_SERVICE_HEARINGS": 4,
-            "MIN_STAGE_DAYS": 10
-        }
+        new_thresholds = {"MIN_SERVICE_HEARINGS": 4, "MIN_STAGE_DAYS": 10}
         RipenessClassifier.set_thresholds(new_thresholds)
 
         updated = RipenessClassifier.get_current_thresholds()
@@ -243,7 +240,7 @@ class TestRipenessPriority:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ARGUMENTS",
-            hearing_count=5
+            hearing_count=5,
         )
         case.service_status = "SERVED"
         case.purpose_of_hearing = "ARGUMENTS"
@@ -260,7 +257,7 @@ class TestRipenessPriority:
             case_type="CRP",
             filed_date=date(2024, 1, 1),
             current_stage="PRE-ADMISSION",
-            hearing_count=1
+            hearing_count=1,
         )
         case.service_status = "PENDING"
         case.purpose_of_hearing = "FOR SUMMONS"
@@ -283,13 +280,17 @@ class TestRipenessSchedulability:
 
     def test_unripe_case_not_schedulable(self, unripe_case):
         """Test that UNRIPE case is not schedulable."""
-        schedulable = RipenessClassifier.is_schedulable(unripe_case, datetime(2024, 2, 1))
+        schedulable = RipenessClassifier.is_schedulable(
+            unripe_case, datetime(2024, 2, 1)
+        )
 
         assert schedulable is False
 
     def test_disposed_case_not_schedulable(self, disposed_case):
         """Test that disposed case is not schedulable."""
-        schedulable = RipenessClassifier.is_schedulable(disposed_case, datetime(2024, 6, 1))
+        schedulable = RipenessClassifier.is_schedulable(
+            disposed_case, datetime(2024, 6, 1)
+        )
 
         assert schedulable is False
 
@@ -300,7 +301,7 @@ class TestRipenessSchedulability:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ARGUMENTS",
-            hearing_count=5
+            hearing_count=5,
         )
         case.service_status = "SERVED"
 
@@ -337,7 +338,11 @@ class TestRipenessExplanations:
         reason = RipenessClassifier.get_ripeness_reason(RipenessStatus.UNRIPE_DEPENDENT)
 
         assert isinstance(reason, str)
-        assert "dependent" in reason.lower() or "stay" in reason.lower() or "pending" in reason.lower()
+        assert (
+            "dependent" in reason.lower()
+            or "stay" in reason.lower()
+            or "pending" in reason.lower()
+        )
 
     def test_unknown_reason(self):
         """Test explanation for UNKNOWN status."""
@@ -354,8 +359,7 @@ class TestRipeningTimeEstimation:
     def test_already_ripe_no_estimation(self, ripe_case):
         """Test that RIPE cases return None for ripening time."""
         estimate = RipenessClassifier.estimate_ripening_time(
-            ripe_case,
-            datetime(2024, 3, 1)
+            ripe_case, datetime(2024, 3, 1)
         )
 
         assert estimate is None
@@ -367,7 +371,7 @@ class TestRipeningTimeEstimation:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="PRE-ADMISSION",
-            hearing_count=1
+            hearing_count=1,
         )
         case.purpose_of_hearing = "FOR SUMMONS"
 
@@ -385,7 +389,7 @@ class TestRipeningTimeEstimation:
             case_type="CRP",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=2
+            hearing_count=2,
         )
         case.purpose_of_hearing = "STAY APPLICATION"
         case.service_status = "SERVED"
@@ -409,7 +413,7 @@ class TestRipenessEdgeCases:
             case_type="CP",
             filed_date=date(2024, 1, 1),
             current_stage="PRE-ADMISSION",
-            hearing_count=0
+            hearing_count=0,
         )
 
         status = RipenessClassifier.classify(case, datetime(2024, 2, 1))
@@ -424,7 +428,7 @@ class TestRipenessEdgeCases:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=3
+            hearing_count=3,
         )
         case.service_status = None
 
@@ -440,7 +444,7 @@ class TestRipenessEdgeCases:
             case_type="MISC.CVL",
             filed_date=date(2024, 1, 1),
             current_stage="UNKNOWN_STAGE",
-            hearing_count=5
+            hearing_count=5,
         )
         case.service_status = "SERVED"
 
@@ -456,7 +460,7 @@ class TestRipenessEdgeCases:
             case_type="RSA",
             filed_date=date(2019, 1, 1),
             current_stage="EVIDENCE",
-            hearing_count=50
+            hearing_count=50,
         )
         case.service_status = "SERVED"
         case.purpose_of_hearing = "EVIDENCE"
@@ -496,15 +500,15 @@ class TestRipenessFailureScenarios:
             case_type="RSA",
             filed_date=date(2024, 1, 1),
             current_stage="ADMISSION",
-            hearing_count=3
+            hearing_count=3,
         )
 
         status = RipenessClassifier.classify(case, datetime(2024, 2, 1))
 
         # Should be a valid RipenessStatus enum value
         assert status in list(RipenessStatus)
-        assert hasattr(status, 'is_ripe')
-        assert hasattr(status, 'is_unripe')
+        assert hasattr(status, "is_ripe")
+        assert hasattr(status, "is_unripe")
 
     def test_threshold_invalid_type(self):
         """Test setting thresholds with invalid types."""
@@ -527,7 +531,7 @@ class TestRipenessFailureScenarios:
             case_id="MINIMAL-001",
             case_type="RSA",
             filed_date=date(2024, 1, 1),
-            current_stage="ADMISSION"
+            current_stage="ADMISSION",
         )
         # Don't set any optional fields
 
@@ -535,5 +539,3 @@ class TestRipenessFailureScenarios:
 
         # Should handle gracefully and return some status
         assert status in list(RipenessStatus)
-
-

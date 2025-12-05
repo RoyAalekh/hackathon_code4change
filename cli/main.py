@@ -127,7 +127,7 @@ def generate(
         from datetime import date as date_cls
 
         from cli.config import GenerateConfig, load_generate_config
-        from scheduler.data.case_generator import CaseGenerator
+        from src.data.case_generator import CaseGenerator
 
         # Resolve parameters: config -> interactive -> flags
         if config:
@@ -247,10 +247,10 @@ def simulate(
         from datetime import date as date_cls
 
         from cli.config import SimulateConfig, load_simulate_config
-        from scheduler.core.case import CaseStatus
-        from scheduler.data.case_generator import CaseGenerator
-        from scheduler.metrics.basic import gini
-        from scheduler.simulation.engine import CourtSim, CourtSimConfig
+        from src.core.case import CaseStatus
+        from src.data.case_generator import CaseGenerator
+        from src.metrics.basic import gini
+        from src.simulation.engine import CourtSim, CourtSimConfig
 
         # Resolve parameters: config -> interactive -> flags
         if config:
@@ -394,7 +394,7 @@ def workflow(
         cases_file = output_path / "cases.csv"
         from datetime import date as date_cls
 
-        from scheduler.data.case_generator import CaseGenerator
+        from src.data.case_generator import CaseGenerator
 
         start = date_cls(2022, 1, 1)
         end = date_cls(2023, 12, 31)
@@ -406,7 +406,7 @@ def workflow(
 
         # Step 3: Run simulation
         console.print("[bold]Step 3/3:[/bold] Run Simulation")
-        from scheduler.simulation.engine import CourtSim, CourtSimConfig
+        from src.simulation.engine import CourtSim, CourtSimConfig
 
         sim_start = max(c.filed_date for c in cases)
         cfg = CourtSimConfig(

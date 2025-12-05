@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from scheduler.core.courtroom import Courtroom
+from src.core.courtroom import Courtroom
 
 
 @pytest.mark.unit
@@ -28,7 +28,7 @@ class TestCourtroomCreation:
         courtroom = Courtroom(
             courtroom_id=1,
             judge_id="J001,J002",  # Multi-judge notation
-            daily_capacity=60
+            daily_capacity=60,
         )
 
         assert courtroom.judge_id == "J001,J002"
@@ -150,7 +150,7 @@ class TestCourtroomScheduling:
             single_courtroom.schedule_case(test_date, f"CASE-{i}")
 
         # If clear method exists
-        if hasattr(single_courtroom, 'clear_schedule'):
+        if hasattr(single_courtroom, "clear_schedule"):
             single_courtroom.clear_schedule(test_date)
             schedule = single_courtroom.get_daily_schedule(test_date)
             assert len(schedule) == 0
@@ -181,7 +181,7 @@ class TestCourtroomScheduling:
         single_courtroom.schedule_case(test_date, case_id)
 
         # Remove if method exists
-        if hasattr(single_courtroom, 'remove_case'):
+        if hasattr(single_courtroom, "remove_case"):
             single_courtroom.remove_case(test_date, case_id)
             schedule = single_courtroom.get_daily_schedule(test_date)
             assert case_id not in schedule
@@ -246,7 +246,7 @@ class TestJudgeAssignment:
         courtroom = Courtroom(courtroom_id=1, judge_id="J001", daily_capacity=50)
 
         # If preferences supported
-        if hasattr(courtroom, 'judge_preferences'):
+        if hasattr(courtroom, "judge_preferences"):
             # Test preference setting/getting
             pass
 
@@ -331,5 +331,3 @@ class TestCourtroomFailureScenarios:
         except (ValueError, TypeError):
             # May fail
             pass
-
-

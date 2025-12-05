@@ -10,11 +10,11 @@ from datetime import date, datetime
 from rl.config import RLTrainingConfig
 from rl.simple_agent import TabularQAgent
 from rl.training import RLTrainingEnvironment, train_agent
-from scheduler.core.ripeness import RipenessClassifier, RipenessStatus
-from scheduler.data.case_generator import CaseGenerator
-from scheduler.data.param_loader import ParameterLoader
-from scheduler.monitoring.ripeness_calibrator import RipenessCalibrator
-from scheduler.monitoring.ripeness_metrics import RipenessMetrics
+from src.core.ripeness import RipenessClassifier, RipenessStatus
+from src.data.case_generator import CaseGenerator
+from src.data.param_loader import ParameterLoader
+from src.monitoring.ripeness_calibrator import RipenessCalibrator
+from src.monitoring.ripeness_metrics import RipenessMetrics
 
 
 def test_gap1_eda_alignment():
@@ -39,8 +39,10 @@ def test_gap1_eda_alignment():
     )
 
     # Verify param_loader exists
-    assert hasattr(env, 'param_loader'), "Environment should have param_loader"
-    assert isinstance(env.param_loader, ParameterLoader), "param_loader should be ParameterLoader instance"
+    assert hasattr(env, "param_loader"), "Environment should have param_loader"
+    assert isinstance(env.param_loader, ParameterLoader), (
+        "param_loader should be ParameterLoader instance"
+    )
 
     print("ParameterLoader successfully integrated into RLTrainingEnvironment")
 
@@ -64,7 +66,9 @@ def test_gap1_eda_alignment():
     print(f"  Difference from EDA: {abs(adjourn_rate - p_adj_eda):.2%}")
 
     # Should be within 15% of EDA value (stochastic sampling)
-    assert abs(adjourn_rate - p_adj_eda) < 0.15, f"Adjournment rate {adjourn_rate:.2%} too far from EDA {p_adj_eda:.2%}"
+    assert abs(adjourn_rate - p_adj_eda) < 0.15, (
+        f"Adjournment rate {adjourn_rate:.2%} too far from EDA {p_adj_eda:.2%}"
+    )
 
     print("\n✅ GAP 1 FIXED: RL training now uses EDA-derived parameters\n")
 
@@ -88,9 +92,13 @@ def test_gap2_ripeness_feedback():
         elif i % 4 == 1:
             test_cases.append((f"case{i}", RipenessStatus.RIPE, True))  # False positive
         elif i % 4 == 2:
-            test_cases.append((f"case{i}", RipenessStatus.UNRIPE_SUMMONS, True))  # Correct UNRIPE
+            test_cases.append(
+                (f"case{i}", RipenessStatus.UNRIPE_SUMMONS, True)
+            )  # Correct UNRIPE
         else:
-            test_cases.append((f"case{i}", RipenessStatus.UNRIPE_SUMMONS, False))  # False negative
+            test_cases.append(
+                (f"case{i}", RipenessStatus.UNRIPE_SUMMONS, False)
+            )  # False negative
 
     prediction_date = datetime(2024, 1, 1)
     outcome_date = datetime(2024, 1, 2)
@@ -111,8 +119,8 @@ def test_gap2_ripeness_feedback():
     print(f"    UNRIPE recall: {accuracy['unripe_recall']:.1%}")
 
     # Expected: 2/4 false positives (50%), 1/2 false negatives (50%)
-    assert accuracy['false_positive_rate'] > 0.4, "Should detect false positives"
-    assert accuracy['false_negative_rate'] > 0.4, "Should detect false negatives"
+    assert accuracy["false_positive_rate"] > 0.4, "Should detect false positives"
+    assert accuracy["false_negative_rate"] > 0.4, "Should detect false negatives"
 
     print("\nRipenessMetrics successfully tracks classification accuracy")
 
@@ -121,7 +129,9 @@ def test_gap2_ripeness_feedback():
 
     print(f"\nRipenessCalibrator generated {len(adjustments)} adjustment suggestions:")
     for adj in adjustments:
-        print(f"    - {adj.threshold_name}: {adj.current_value} → {adj.suggested_value}")
+        print(
+            f"    - {adj.threshold_name}: {adj.current_value} → {adj.suggested_value}"
+        )
         print(f"      Reason: {adj.reason[:80]}...")
 
     assert len(adjustments) > 0, "Should suggest at least one adjustment"

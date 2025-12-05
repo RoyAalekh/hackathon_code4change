@@ -64,8 +64,8 @@ def load_raw() -> tuple[pl.DataFrame, pl.DataFrame]:
 
     print(f"Loading Parquet files:\n- {cases_path}\n- {hearings_path}")
 
-    cases = pl.read_parquet(cases_path)
-    hearings = pl.read_parquet(hearings_path)
+    cases = pl.read_parquet(cases_path, low_memory=True)
+    hearings = pl.read_parquet(hearings_path, low_memory=True)
 
     print(f"Cases shape: {cases.shape}")
     print(f"Hearings shape: {hearings.shape}")
@@ -240,6 +240,7 @@ def save_clean(cases: pl.DataFrame, hearings: pl.DataFrame) -> None:
 def run_load_and_clean() -> None:
     cases_raw, hearings_raw = load_raw()
     cases_clean, hearings_clean = clean_and_augment(cases_raw, hearings_raw)
+    del cases_raw, hearings_raw
     save_clean(cases_clean, hearings_clean)
 
 

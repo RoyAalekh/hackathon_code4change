@@ -21,7 +21,6 @@ from datetime import timedelta
 
 import plotly.express as px
 import plotly.graph_objects as go
-import plotly.io as pio
 import polars as pl
 
 from eda.config import (
@@ -30,8 +29,6 @@ from eda.config import (
     _get_run_dir,
     safe_write_figure,
 )
-
-pio.renderers.default = "browser"
 
 
 def load_cleaned():
@@ -44,21 +41,19 @@ def load_cleaned():
 
 def run_exploration() -> None:
     cases, hearings = load_cleaned()
-    cases_pd = cases.to_pandas()
-    hearings_pd = hearings.to_pandas()
+    # Keep transformations in Polars; convert only small, final results for plotting
 
     # --------------------------------------------------
     # 1. Case Type Distribution (aggregated to reduce plot data size)
     # --------------------------------------------------
     try:
         ct_counts = (
-            cases_pd.groupby("CASE_TYPE")["CNR_NUMBER"]
-            .count()
-            .reset_index(name="COUNT")
-            .sort_values("COUNT", ascending=False)
+            cases.group_by("CASE_TYPE")
+            .agg(pl.len().alias("COUNT"))
+            .sort("COUNT", descending=True)
         )
         fig1 = px.bar(
-            ct_counts,
+            ct_counts.to_pandas(),
             x="CASE_TYPE",
             y="COUNT",
             color="CASE_TYPE",
@@ -77,10 +72,14 @@ def run_exploration() -> None:
     # --------------------------------------------------
     # 2. Filing Trends by Year
     # --------------------------------------------------
-    if "YEAR_FILED" in cases_pd.columns:
-        year_counts = cases_pd.groupby("YEAR_FILED")["CNR_NUMBER"].count().reset_index(name="Count")
+    if "YEAR_FILED" in cases.columns:
+        year_counts = cases.group_by("YEAR_FILED").agg(pl.len().alias("Count"))
         fig2 = px.line(
-            year_counts, x="YEAR_FILED", y="Count", markers=True, title="Cases Filed by Year"
+            year_counts.to_pandas(),
+            x="YEAR_FILED",
+            y="Count",
+            markers=True,
+            title="Cases Filed by Year",
         )
         fig2.update_traces(line_color="royalblue")
         fig2.update_layout(xaxis=dict(rangeslider=dict(visible=True)))
@@ -90,10 +89,9 @@ def run_exploration() -> None:
     # --------------------------------------------------
     # 3. Disposal Duration Distribution
     # --------------------------------------------------
-    if "DISPOSALTIME_ADJ" in cases_pd.columns:
+    if "DISPOSALTIME_ADJ" in cases.columns:
         fig3 = px.histogram(
-            cases_pd,
-            x="DISPOSALTIME_ADJ",
+            x=cases["DISPOSALTIME_ADJ"].to_list(),
             nbins=50,
             title="Distribution of Disposal Time (Adjusted Days)",
             color_discrete_sequence=["indianred"],
@@ -105,9 +103,13 @@ def run_exploration() -> None:
     # --------------------------------------------------
     # 4. Hearings vs Disposal Time
     # --------------------------------------------------
-    if {"N_HEARINGS", "DISPOSALTIME_ADJ"}.issubset(cases_pd.columns):
+    if {"N_HEARINGS", "DISPOSALTIME_ADJ"}.issubset(set(cases.columns)):
+        # Convert only necessary columns for plotting with color/hover metadata
+        cases_scatter = cases.select(
+            ["N_HEARINGS", "DISPOSALTIME_ADJ", "CASE_TYPE", "CNR_NUMBER", "YEAR_FILED"]
+        ).to_pandas()
         fig4 = px.scatter(
-            cases_pd,
+            cases_scatter,
             x="N_HEARINGS",
             y="DISPOSALTIME_ADJ",
             color="CASE_TYPE",
@@ -122,7 +124,7 @@ def run_exploration() -> None:
     # 5. Boxplot by Case Type
     # --------------------------------------------------
     fig5 = px.box(
-        cases_pd,
+        cases.select(["CASE_TYPE", "DISPOSALTIME_ADJ"]).to_pandas(),
         x="CASE_TYPE",
         y="DISPOSALTIME_ADJ",
         color="CASE_TYPE",
@@ -135,11 +137,14 @@ def run_exploration() -> None:
     # --------------------------------------------------
     # 6. Stage Frequency
     # --------------------------------------------------
-    if "Remappedstages" in hearings_pd.columns:
-        stage_counts = hearings_pd["Remappedstages"].value_counts().reset_index()
-        stage_counts.columns = ["Stage", "Count"]
+    if "Remappedstages" in hearings.columns:
+        stage_counts = (
+            hearings["Remappedstages"]
+            .value_counts()
+            .rename({"Remappedstages": "Stage", "count": "Count"})
+        )
         fig6 = px.bar(
-            stage_counts,
+            stage_counts.to_pandas(),
             x="Stage",
             y="Count",
             color="Stage",
@@ -159,9 +164,9 @@ def run_exploration() -> None:
     # --------------------------------------------------
     # 7. Gap median by case type
     # --------------------------------------------------
-    if "GAP_MEDIAN" in cases_pd.columns:
+    if "GAP_MEDIAN" in cases.columns:
         fig_gap = px.box(
-            cases_pd,
+            cases.select(["CASE_TYPE", "GAP_MEDIAN"]).to_pandas(),
             x="CASE_TYPE",
             y="GAP_MEDIAN",
             points=False,
@@ -201,7 +206,9 @@ def run_exploration() -> None:
                     pl.col(stage_col)
                     .fill_null("NA")
                     .map_elements(
-                        lambda s: s if s in STAGE_ORDER else ("OTHER" if s is not None else "NA")
+                        lambda s: s
+                        if s in STAGE_ORDER
+                        else ("OTHER" if s is not None else "NA")
                     )
                     .alias("STAGE"),
                     pl.col("BusinessOnDate").alias("DT"),
@@ -255,7 +262,9 @@ def run_exploration() -> None:
                 ]
             )
             .with_columns(
-                ((pl.col("RUN_END") - pl.col("RUN_START")) / timedelta(days=1)).alias("RUN_DAYS")
+                ((pl.col("RUN_END") - pl.col("RUN_START")) / timedelta(days=1)).alias(
+                    "RUN_DAYS"
+                )
             )
         )
         stage_duration = (
@@ -281,8 +290,12 @@ def run_exploration() -> None:
                 if s in set(tr_df["STAGE_FROM"]).union(set(tr_df["STAGE_TO"]))
             ]
             idx = {label: i for i, label in enumerate(labels)}
-            tr_df = tr_df[tr_df["STAGE_FROM"].isin(labels) & tr_df["STAGE_TO"].isin(labels)].copy()
-            tr_df = tr_df.sort_values(by=["STAGE_FROM", "STAGE_TO"], key=lambda c: c.map(idx))
+            tr_df = tr_df[
+                tr_df["STAGE_FROM"].isin(labels) & tr_df["STAGE_TO"].isin(labels)
+            ].copy()
+            tr_df = tr_df.sort_values(
+                by=["STAGE_FROM", "STAGE_TO"], key=lambda c: c.map(idx)
+            )
             sankey = go.Figure(
                 data=[
                     go.Sankey(
@@ -337,7 +350,9 @@ def run_exploration() -> None:
             )
             .with_columns(pl.date(pl.col("Y"), pl.col("M"), pl.lit(1)).alias("YM"))
         )
-        monthly_listings = m_hear.group_by("YM").agg(pl.len().alias("N_HEARINGS")).sort("YM")
+        monthly_listings = (
+            m_hear.group_by("YM").agg(pl.len().alias("N_HEARINGS")).sort("YM")
+        )
         monthly_listings.write_csv(str(_get_run_dir() / "monthly_hearings.csv"))
 
         try:
@@ -358,12 +373,18 @@ def run_exploration() -> None:
             ml = monthly_listings.with_columns(
                 [
                     pl.col("N_HEARINGS").shift(1).alias("PREV"),
-                    (pl.col("N_HEARINGS") - pl.col("N_HEARINGS").shift(1)).alias("DELTA"),
+                    (pl.col("N_HEARINGS") - pl.col("N_HEARINGS").shift(1)).alias(
+                        "DELTA"
+                    ),
                 ]
             )
             ml_pd = ml.to_pandas()
-            ml_pd["ROLL_MEAN"] = ml_pd["N_HEARINGS"].rolling(window=12, min_periods=6).mean()
-            ml_pd["ROLL_STD"] = ml_pd["N_HEARINGS"].rolling(window=12, min_periods=6).std()
+            ml_pd["ROLL_MEAN"] = (
+                ml_pd["N_HEARINGS"].rolling(window=12, min_periods=6).mean()
+            )
+            ml_pd["ROLL_STD"] = (
+                ml_pd["N_HEARINGS"].rolling(window=12, min_periods=6).std()
+            )
             ml_pd["Z"] = (ml_pd["N_HEARINGS"] - ml_pd["ROLL_MEAN"]) / ml_pd["ROLL_STD"]
             ml_pd["ANOM"] = ml_pd["Z"].abs() >= 3.0
 
@@ -455,10 +476,27 @@ def run_exploration() -> None:
 
     if text_col:
         hear_txt = hearings.with_columns(
-            pl.col(text_col).cast(pl.Utf8).str.strip_chars().str.to_uppercase().alias("PURPOSE_TXT")
+            pl.col(text_col)
+            .cast(pl.Utf8)
+            .str.strip_chars()
+            .str.to_uppercase()
+            .alias("PURPOSE_TXT")
         )
-        async_kw = ["NON-COMPLIANCE", "OFFICE OBJECTION", "COMPLIANCE", "NOTICE", "SERVICE"]
-        subs_kw = ["EVIDENCE", "ARGUMENT", "FINAL HEARING", "JUDGMENT", "ORDER", "DISPOSAL"]
+        async_kw = [
+            "NON-COMPLIANCE",
+            "OFFICE OBJECTION",
+            "COMPLIANCE",
+            "NOTICE",
+            "SERVICE",
+        ]
+        subs_kw = [
+            "EVIDENCE",
+            "ARGUMENT",
+            "FINAL HEARING",
+            "JUDGMENT",
+            "ORDER",
+            "DISPOSAL",
+        ]
         hear_txt = hear_txt.with_columns(
             pl.when(_has_kw_expr("PURPOSE_TXT", async_kw))
             .then(pl.lit("ASYNC_OR_ADMIN"))
@@ -470,7 +508,9 @@ def run_exploration() -> None:
         tag_share = (
             hear_txt.group_by(["CASE_TYPE", "PURPOSE_TAG"])
             .agg(pl.len().alias("N"))
-            .with_columns((pl.col("N") / pl.col("N").sum().over("CASE_TYPE")).alias("SHARE"))
+            .with_columns(
+                (pl.col("N") / pl.col("N").sum().over("CASE_TYPE")).alias("SHARE")
+            )
             .sort(["CASE_TYPE", "SHARE"], descending=[False, True])
         )
         tag_share.write_csv(str(_get_run_dir() / "purpose_tag_shares.csv"))

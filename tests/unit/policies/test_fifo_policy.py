@@ -7,8 +7,8 @@ from datetime import date
 
 import pytest
 
-from scheduler.core.case import Case
-from scheduler.simulation.policies.fifo import FIFOPolicy
+from src.core.case import Case
+from src.simulation.policies.fifo import FIFOPolicy
 
 
 @pytest.mark.unit
@@ -21,9 +21,24 @@ class TestFIFOPolicy:
 
         # Create cases with different filing dates
         cases = [
-            Case(case_id="C3", case_type="RSA", filed_date=date(2024, 3, 1), current_stage="ADMISSION"),
-            Case(case_id="C1", case_type="CRP", filed_date=date(2024, 1, 1), current_stage="ADMISSION"),
-            Case(case_id="C2", case_type="CA", filed_date=date(2024, 2, 1), current_stage="ADMISSION"),
+            Case(
+                case_id="C3",
+                case_type="RSA",
+                filed_date=date(2024, 3, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C1",
+                case_type="CRP",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C2",
+                case_type="CA",
+                filed_date=date(2024, 2, 1),
+                current_stage="ADMISSION",
+            ),
         ]
 
         prioritized = policy.prioritize(cases, current_date=date(2024, 4, 1))
@@ -38,9 +53,24 @@ class TestFIFOPolicy:
         policy = FIFOPolicy()
 
         cases = [
-            Case(case_id="C-B", case_type="RSA", filed_date=date(2024, 1, 1), current_stage="ADMISSION"),
-            Case(case_id="C-A", case_type="CRP", filed_date=date(2024, 1, 1), current_stage="ADMISSION"),
-            Case(case_id="C-C", case_type="CA", filed_date=date(2024, 1, 1), current_stage="ADMISSION"),
+            Case(
+                case_id="C-B",
+                case_type="RSA",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C-A",
+                case_type="CRP",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C-C",
+                case_type="CA",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            ),
         ]
 
         prioritized = policy.prioritize(cases, current_date=date(2024, 2, 1))
@@ -61,7 +91,14 @@ class TestFIFOPolicy:
         """Test FIFO with single case."""
         policy = FIFOPolicy()
 
-        cases = [Case(case_id="ONLY", case_type="RSA", filed_date=date(2024, 1, 1), current_stage="ADMISSION")]
+        cases = [
+            Case(
+                case_id="ONLY",
+                case_type="RSA",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            )
+        ]
 
         prioritized = policy.prioritize(cases, current_date=date(2024, 2, 1))
 
@@ -73,9 +110,24 @@ class TestFIFOPolicy:
         policy = FIFOPolicy()
 
         cases = [
-            Case(case_id="C1", case_type="RSA", filed_date=date(2024, 1, 1), current_stage="ADMISSION"),
-            Case(case_id="C2", case_type="CRP", filed_date=date(2024, 2, 1), current_stage="ADMISSION"),
-            Case(case_id="C3", case_type="CA", filed_date=date(2024, 3, 1), current_stage="ADMISSION"),
+            Case(
+                case_id="C1",
+                case_type="RSA",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C2",
+                case_type="CRP",
+                filed_date=date(2024, 2, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C3",
+                case_type="CA",
+                filed_date=date(2024, 3, 1),
+                current_stage="ADMISSION",
+            ),
         ]
 
         prioritized = policy.prioritize(cases, current_date=date(2024, 4, 1))
@@ -90,9 +142,24 @@ class TestFIFOPolicy:
         policy = FIFOPolicy()
 
         cases = [
-            Case(case_id="C3", case_type="RSA", filed_date=date(2024, 3, 1), current_stage="ADMISSION"),
-            Case(case_id="C2", case_type="CRP", filed_date=date(2024, 2, 1), current_stage="ADMISSION"),
-            Case(case_id="C1", case_type="CA", filed_date=date(2024, 1, 1), current_stage="ADMISSION"),
+            Case(
+                case_id="C3",
+                case_type="RSA",
+                filed_date=date(2024, 3, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C2",
+                case_type="CRP",
+                filed_date=date(2024, 2, 1),
+                current_stage="ADMISSION",
+            ),
+            Case(
+                case_id="C1",
+                case_type="CA",
+                filed_date=date(2024, 1, 1),
+                current_stage="ADMISSION",
+            ),
         ]
 
         prioritized = policy.prioritize(cases, current_date=date(2024, 4, 1))
@@ -104,10 +171,12 @@ class TestFIFOPolicy:
 
     def test_large_case_set(self):
         """Test FIFO with large number of cases."""
-        from scheduler.data.case_generator import CaseGenerator
+        from src.data.case_generator import CaseGenerator
 
         policy = FIFOPolicy()
-        generator = CaseGenerator(start=date(2024, 1, 1), end=date(2024, 12, 31), seed=42)
+        generator = CaseGenerator(
+            start=date(2024, 1, 1), end=date(2024, 12, 31), seed=42
+        )
         cases = generator.generate(1000)
 
         prioritized = policy.prioritize(cases, current_date=date(2025, 1, 1))
@@ -115,5 +184,3 @@ class TestFIFOPolicy:
         # Verify ordering (first should be oldest)
         for i in range(len(prioritized) - 1):
             assert prioritized[i].filed_date <= prioritized[i + 1].filed_date
-
-
