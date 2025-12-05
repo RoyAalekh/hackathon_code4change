@@ -26,4 +26,4 @@ RUN uv --version && python --version && which court-scheduler && which streamlit
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "scheduler/dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
