@@ -54,7 +54,7 @@ court-scheduler = "cli.main:app"
 include = [
     "cli",
     "eda",
-    "scheduler",
+    "src",
 ]
 exclude = [
     "Data",
