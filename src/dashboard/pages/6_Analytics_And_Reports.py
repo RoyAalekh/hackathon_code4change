@@ -47,9 +47,10 @@ with tab1:
         "Compare multiple simulation runs to evaluate different policies and parameters."
     )
 
-    # Check for available simulation runs
-    outputs_dir = Path("outputs")
-    runs_dir = outputs_dir / "simulation_runs"
+    # Check for available simulation runs (centralized base)
+    from src.config.paths import get_runs_base
+
+    runs_dir = get_runs_base()
 
     if not runs_dir.exists():
         st.warning(
@@ -252,9 +253,10 @@ with tab2:
     st.markdown("### Performance Trends")
     st.markdown("Analyze performance metrics across all simulation runs.")
 
-    # Use simulation_runs directory recursively
-    outputs_dir = Path("outputs")
-    runs_dir = outputs_dir / "simulation_runs"
+    # Use centralized runs directory recursively
+    from src.config.paths import get_runs_base
+
+    runs_dir = get_runs_base()
 
     if not runs_dir.exists():
         st.warning("No simulation outputs found.")
@@ -273,7 +275,11 @@ with tab2:
                 try:
                     df = pd.read_csv(metrics_path)
                     # Use relative label for clarity across nested structures
-                    df["run"] = str(run_dir.relative_to(runs_dir))
+                    try:
+                        df["run"] = str(run_dir.relative_to(runs_dir))
+                    except ValueError:
+                        # Fallback to folder name if not under base (shouldn't happen)
+                        df["run"] = run_dir.name
                     all_metrics.append(df)
                 except Exception:
                     pass  # Skip invalid metrics files
@@ -345,8 +351,9 @@ with tab3:
     - **Case Type Balance**: Ensures no case type is systematically disadvantaged
     """)
 
-    outputs_dir = Path("outputs")
-    runs_dir = outputs_dir / "simulation_runs"
+    from src.config.paths import get_runs_base
+
+    runs_dir = get_runs_base()
 
     if not runs_dir.exists():
         st.warning("No simulation outputs found.")

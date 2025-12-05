@@ -36,6 +36,7 @@ from src.simulation.allocator import AllocationStrategy, CourtroomAllocator
 from src.simulation.events import EventWriter
 from src.simulation.policies import get_policy
 from src.utils.calendar import CourtCalendar
+from src.config.paths import make_new_run_dir
 
 
 @dataclass
@@ -86,11 +87,11 @@ class CourtSim:
         self._log_dir: Path | None = None
         if self.cfg.log_dir:
             self._log_dir = Path(self.cfg.log_dir)
+            self._log_dir.mkdir(parents=True, exist_ok=True)
         else:
-            # default run folder
+            # default run folder (centralized base path)
             run_id = time.strftime("%Y%m%d_%H%M%S")
-            self._log_dir = Path("data") / "sim_runs" / run_id
-        self._log_dir.mkdir(parents=True, exist_ok=True)
+            self._log_dir = make_new_run_dir(run_id)
         self._metrics_path = self._log_dir / "metrics.csv"
         with self._metrics_path.open("w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)

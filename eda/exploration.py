@@ -21,6 +21,7 @@ from datetime import timedelta
 
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
 import polars as pl
 
 from eda.config import (
@@ -29,6 +30,11 @@ from eda.config import (
     _get_run_dir,
     safe_write_figure,
 )
+
+
+px.defaults.template = "plotly_white"
+px.defaults.color_discrete_sequence = px.colors.qualitative.Set2
+pio.templates.default = "plotly_white"
 
 
 def load_cleaned():
@@ -41,10 +47,7 @@ def load_cleaned():
 
 def run_exploration() -> None:
     cases, hearings = load_cleaned()
-    # Keep transformations in Polars; convert only small, final results for plotting
-
-    # --------------------------------------------------
-    # 1. Case Type Distribution (aggregated to reduce plot data size)
+    # 1. Case Type Distribution
     # --------------------------------------------------
     try:
         ct_counts = (
@@ -70,18 +73,26 @@ def run_exploration() -> None:
         print("Case type distribution error:", e)
 
     # --------------------------------------------------
-    # 2. Filing Trends by Year
+    # 2. Filing Trends by Year (single line, no slider)
     # --------------------------------------------------
+
     if "YEAR_FILED" in cases.columns:
-        year_counts = cases.group_by("YEAR_FILED").agg(pl.len().alias("Count"))
-        fig2 = px.bar(
-            year_counts.to_pandas(),
+        year_counts = (
+            cases.group_by("YEAR_FILED")
+            .agg(pl.len().alias("Count"))
+            .sort("YEAR_FILED", descending=False)
+        )
+        df_year = year_counts.to_pandas()
+        fig2 = px.line(
+            df_year,
             x="YEAR_FILED",
             y="Count",
+            markers=True,
             title="Cases Filed by Year",
         )
-        fig2.update_traces(line_color="royalblue")
-        fig2.update_layout(xaxis=dict(rangeslider=dict(visible=True)))
+        fig2.update_layout(xaxis_title="Year", yaxis_title="Cases")
+        # Fix y-axis max to 10k (counts are known to be < 10k)
+        fig2.update_yaxes(range=[0, 10000])
         f2 = "2_cases_filed_by_year.html"
         safe_write_figure(fig2, f2)
 

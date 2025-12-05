@@ -17,6 +17,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.output.cause_list import CauseListGenerator
+from src.config.paths import get_runs_base
 
 CLI_VERSION = "1.0.0"
 # Page configuration
@@ -366,8 +367,8 @@ elif st.session_state.workflow_step == 2:
 
         log_dir = st.text_input(
             "Output directory",
-            value="outputs/simulation_runs",
-            help="Directory to save simulation outputs",
+            value=str(get_runs_base()),
+            help="Directory to save simulation outputs (override with DASHBOARD_RUNS_BASE env var)",
         )
 
     with col2:

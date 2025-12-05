@@ -45,7 +45,9 @@ if "draft_modifications" not in st.session_state:
     st.session_state.draft_modifications = []
 
 # Main tabs
-tab1, tab2, tab3 = st.tabs(["View Cause Lists", "Judge Override Interface", "Audit Trail"])
+tab1, tab2, tab3 = st.tabs(
+    ["View Cause Lists", "Judge Override Interface", "Audit Trail"]
+)
 
 # TAB 1: View Cause Lists
 with tab1:
@@ -55,18 +57,24 @@ with tab1:
     )
 
     # Check for available cause lists
-    # Look specifically under outputs/simulation_runs where dashboard writes per-run folders
-    outputs_dir = Path("outputs") / "simulation_runs"
+    # Use centralized runs base directory
+    from src.config.paths import get_runs_base
+
+    outputs_dir = get_runs_base()
 
     if not outputs_dir.exists():
-        st.warning("No simulation outputs found. Run a simulation first to generate cause lists.")
+        st.warning(
+            "No simulation outputs found. Run a simulation first to generate cause lists."
+        )
         st.markdown("Go to **Simulation Workflow** to run a simulation.")
     else:
         # Look for simulation runs (each is a subdirectory in outputs/simulation_runs)
         sim_runs = [d for d in outputs_dir.iterdir() if d.is_dir()]
 
         if not sim_runs:
-            st.info("No simulation runs found. Generate cause lists by running a simulation.")
+            st.info(
+                "No simulation runs found. Generate cause lists by running a simulation."
+            )
         else:
             st.markdown(f"**{len(sim_runs)} simulation run(s) found**")
 
@@ -75,7 +83,9 @@ with tab1:
 
             with col1:
                 selected_run = st.selectbox(
-                    "Select simulation run", options=[d.name for d in sim_runs], key="view_sim_run"
+                    "Select simulation run",
+                    options=[d.name for d in sim_runs],
+                    key="view_sim_run",
                 )
 
             with col2:
@@ -138,18 +148,25 @@ with tab1:
                         st.metric("Unique Cases", unique_cases)
 
                     with col2:
-                        st.metric("Dates", df["date"].nunique() if "date" in df.columns else "N/A")
+                        st.metric(
+                            "Dates",
+                            df["date"].nunique() if "date" in df.columns else "N/A",
+                        )
 
                     with col3:
                         st.metric(
                             "Courtrooms",
-                            df["courtroom"].nunique() if "courtroom" in df.columns else "N/A",
+                            df["courtroom"].nunique()
+                            if "courtroom" in df.columns
+                            else "N/A",
                         )
 
                     with col4:
                         st.metric(
                             "Case Types",
-                            df["case_type"].nunique() if "case_type" in df.columns else "N/A",
+                            df["case_type"].nunique()
+                            if "case_type" in df.columns
+                            else "N/A",
                         )
 
                     # Filters
@@ -206,7 +223,9 @@ with tab1:
                                 ]
 
                     st.markdown("---")
-                    st.markdown(f"**Showing {len(filtered_df):,} of {len(df):,} hearings**")
+                    st.markdown(
+                        f"**Showing {len(filtered_df):,} of {len(df):,} hearings**"
+                    )
 
                     # Display table
                     st.dataframe(
@@ -226,7 +245,9 @@ with tab1:
 
                     # Load into override interface
                     if st.button(
-                        "Load into Override Interface", type="primary", use_container_width=True
+                        "Load into Override Interface",
+                        type="primary",
+                        use_container_width=True,
                     ):
                         st.session_state.current_cause_list = {
                             "source": str(cause_list_path),
@@ -235,7 +256,9 @@ with tab1:
                             "loaded_at": datetime.now().isoformat(),
                         }
                         st.success("Cause list loaded into Override Interface")
-                        st.info("Navigate to 'Judge Override Interface' tab to review and modify.")
+                        st.info(
+                            "Navigate to 'Judge Override Interface' tab to review and modify."
+                        )
 
                 except Exception as e:
                     st.error(f"Error loading cause list: {e}")
@@ -248,7 +271,9 @@ with tab2:
     )
 
     if not st.session_state.current_cause_list:
-        st.info("No cause list loaded. Go to 'View Cause Lists' tab and load a cause list first.")
+        st.info(
+            "No cause list loaded. Go to 'View Cause Lists' tab and load a cause list first."
+        )
     else:
         cause_list_info = st.session_state.current_cause_list
 
@@ -295,7 +320,9 @@ with tab2:
 
                         # Remove from draft
                         draft_df = draft_df[draft_df["case_id"] != case_to_remove]
-                        st.session_state.current_cause_list["data"] = draft_df.to_dict("records")
+                        st.session_state.current_cause_list["data"] = draft_df.to_dict(
+                            "records"
+                        )
 
                         st.success(f"Removed case {case_to_remove}")
                         st.rerun()
@@ -312,7 +339,9 @@ with tab2:
                     )
 
                     new_priority = st.selectbox(
-                        "New priority", options=["HIGH", "MEDIUM", "LOW"], key="new_priority"
+                        "New priority",
+                        options=["HIGH", "MEDIUM", "LOW"],
+                        key="new_priority",
                     )
 
                     if case_to_prioritize != "(None)" and st.button("Update Priority"):
@@ -328,11 +357,11 @@ with tab2:
 
                         # Update priority in draft
                         if "priority" in draft_df.columns:
-                            draft_df.loc[draft_df["case_id"] == case_to_prioritize, "priority"] = (
-                                new_priority
-                            )
-                            st.session_state.current_cause_list["data"] = draft_df.to_dict(
-                                "records"
+                            draft_df.loc[
+                                draft_df["case_id"] == case_to_prioritize, "priority"
+                            ] = new_priority
+                            st.session_state.current_cause_list["data"] = (
+                                draft_df.to_dict("records")
                             )
 
                         st.success(f"Updated priority for case {case_to_prioritize}")
@@ -342,7 +371,9 @@ with tab2:
 
             # Display draft with modifications
             st.markdown("### Current Draft")
-            st.caption(f"{len(st.session_state.draft_modifications)} modification(s) made")
+            st.caption(
+                f"{len(st.session_state.draft_modifications)} modification(s) made"
+            )
 
             st.dataframe(
                 draft_df,
@@ -396,14 +427,18 @@ with tab2:
                     st.success(f"Draft saved to {draft_file}")
 
             with approval_col3:
-                if st.button("Approve & Finalize", type="primary", use_container_width=True):
+                if st.button(
+                    "Approve & Finalize", type="primary", use_container_width=True
+                ):
                     # Record approval
                     approval = {
                         "timestamp": datetime.now().isoformat(),
                         "action": "APPROVE",
                         "source": cause_list_info["source"],
                         "final_count": len(draft_df),
-                        "modifications_count": len(st.session_state.draft_modifications),
+                        "modifications_count": len(
+                            st.session_state.draft_modifications
+                        ),
                         "modifications": st.session_state.draft_modifications.copy(),
                     }
                     st.session_state.override_history.append(approval)
@@ -413,7 +448,9 @@ with tab2:
                     approved_path.mkdir(parents=True, exist_ok=True)
 
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    approved_file = approved_path / f"approved_cause_list_{timestamp}.csv"
+                    approved_file = (
+                        approved_path / f"approved_cause_list_{timestamp}.csv"
+                    )
 
                     draft_df.to_csv(approved_file, index=False)
 
@@ -439,7 +476,9 @@ with tab3:
     if not st.session_state.override_history:
         st.info("No approval history yet. Approve cause lists to build audit trail.")
     else:
-        st.markdown(f"**{len(st.session_state.override_history)} approval(s) recorded**")
+        st.markdown(
+            f"**{len(st.session_state.override_history)} approval(s) recorded**"
+        )
 
         # Summary statistics
         st.markdown("#### Summary Statistics")

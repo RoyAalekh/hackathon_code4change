@@ -136,6 +136,31 @@ if not eda_ready:
         st.code("uv run court-scheduler eda", language="bash")
 else:
     st.success("System ready - all data processed")
+    # Allow user to override and re-run EDA even if it's already completed
+    st.markdown("\n")
+    if st.button("Re-run EDA Pipeline (override)", use_container_width=False):
+        from eda.load_clean import run_load_and_clean
+        from eda.exploration import run_exploration
+        from eda.parameters import run_parameter_export
+
+        with st.spinner("Re-running EDA pipeline... This may take a few minutes."):
+            try:
+                # Step 1: Load & clean data
+                run_load_and_clean()
+
+                # Step 2: Generate visualizations
+                run_exploration()
+
+                # Step 3: Extract parameters
+                run_parameter_export()
+
+                st.success("EDA pipeline re-run completed")
+                st.rerun()
+
+            except Exception as e:
+                st.error("Pipeline failed while re-running inside the dashboard.")
+                with st.expander("Show error details"):
+                    st.exception(e)
 
 st.markdown("---")
 
@@ -164,8 +189,8 @@ with col2:
     #### 4. Cause Lists & Overrides
     View generated cause lists, make judge overrides, and track modification history.
 
-    #### 5. RL Training
-    Train reinforcement learning models for optimized scheduling policies.
+    #### 5. Scheduled Cases Explorer
+    Browse individual case, view status timelines, and understand scheduling decisions.
 
     #### 6. Analytics & Reports
     Compare simulation runs, analyze performance metrics, and export comprehensive reports.
@@ -210,3 +235,4 @@ with st.expander("Typical Usage Workflow"):
 # Footer
 st.markdown("---")
 st.caption("Court Scheduling System - Code4Change Hackathon - Karnataka High Court")
+st.caption("Developed by Aalekh Roy")
