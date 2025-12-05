@@ -16,4 +16,12 @@ __pylintrc__
 .pdf
 .html
 .docx
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+*.log
+*.sqlite3
+*.db
+*.bak
+*.swp
 
