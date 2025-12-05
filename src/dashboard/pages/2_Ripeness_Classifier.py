@@ -220,11 +220,20 @@ with tab2:
         today = date.today()
         filed_date = today - timedelta(days=case_age)
 
+        # Map UI-friendly stage labels to classifier's internal stage names
+        stage_map = {
+            "PRE-TRIAL": "ADMISSION",  # early-stage administrative
+            "TRIAL": "EVIDENCE",  # substantive stage
+            "POST-TRIAL": "ORDERS / JUDGMENT",  # arguments/orders phase
+            "FINAL DISPOSAL": "FINAL DISPOSAL",
+        }
+        classifier_stage = stage_map.get(case_stage, case_stage)
+
         test_case = Case(
             case_id=case_id,
             case_type=case_type,
             filed_date=filed_date,
-            current_stage=case_stage,
+            current_stage=classifier_stage,
             status=CaseStatus.PENDING,
         )
 
@@ -246,6 +255,36 @@ with tab2:
         st.markdown("### Classification Result")
         st.markdown(f":{color}[**{status.value}**]")
         st.caption(reason)
+
+        # Debug details to explain classification
+        with st.expander("Why this classification? (debug)"):
+            thresholds = RipenessClassifier.get_current_thresholds()
+            service_ok = service_hearings_count >= thresholds[
+                "MIN_SERVICE_HEARINGS"
+            ] or bool(test_case.last_hearing_purpose)
+            compliance_ok = (
+                classifier_stage not in RipenessClassifier.UNRIPE_STAGES
+                or days_in_stage >= thresholds["MIN_STAGE_DAYS"]
+            )
+            age_ok = case_age >= thresholds["MIN_CASE_AGE_DAYS"]
+
+            st.write(
+                {
+                    "ui_stage": case_stage,
+                    "classifier_stage": classifier_stage,
+                    "hearing_count": service_hearings_count,
+                    "days_in_stage": int(days_in_stage),
+                    "age_days": int(case_age),
+                    "last_hearing_purpose": test_case.last_hearing_purpose,
+                    "evidence": {
+                        "service_ok": service_ok,
+                        "compliance_ok": compliance_ok,
+                        "age_ok": age_ok,
+                        "all_ok": service_ok and compliance_ok and age_ok,
+                    },
+                    "thresholds": thresholds,
+                }
+            )
 
 with tab3:
     st.markdown("### Batch Classification Analysis")

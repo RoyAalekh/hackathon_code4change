@@ -16,9 +16,9 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from cli import __version__ as CLI_VERSION
 from src.output.cause_list import CauseListGenerator
 
+CLI_VERSION = "1.0.0"
 # Page configuration
 st.set_page_config(
     page_title="Simulation Workflow",
