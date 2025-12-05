@@ -1,6 +1,6 @@
 # Code4Change: Intelligent Court Scheduling System
 
-Purpose-built for hackathon evaluation. This repository runs out of the box using the Streamlit dashboard and the uv tool.
+Purpose-built for hackathon evaluation. This repository runs out of the box using the Streamlit dashboard and the uv tool. It can be run locally, in Docker, or on Hugging Face Spaces (Docker runtime).
 
 ## Requirements
 
@@ -24,7 +24,7 @@ uv install
 ```
 5. Launch the dashboard:
 ```bash
-uv run streamlit run scheduler/dashboard/app.py
+uv run streamlit run app.py
 ```
 
 Then open http://localhost:8501 in your browser.
@@ -80,16 +80,22 @@ docker run --rm `
 4) Run the Streamlit dashboard:
 
 ```powershell
-docker run --rm -p 8501:8501 `
+docker run --rm -p 7860:7860 `
   -v ${PWD}\Data:/app/Data `
   -v ${PWD}\outputs:/app/outputs `
-  code4change-analysis `
-  streamlit run scheduler/dashboard/app.py --server.address=0.0.0.0
+  code4change-analysis
 ```
 
-Then open http://localhost:8501.
+Then open http://localhost:7860.
 
 Notes for Windows CMD: use ^ for line continuation and replace ${PWD} with the full path.
+
+## Deploy on Hugging Face Spaces (Docker)
+
+This repository is ready for Hugging Face Spaces using the Docker runtime.
+
+View the live demo at: https://royaalekh-hackathon-code4change.hf.space/
+
 
 ## Data (Parquet format)
 
@@ -97,4 +103,16 @@ This repository uses a parquet data format for efficient loading and processing.
 Provided excel and csv files have been pre-converted to parquet and stored in the `Data/` folder.
 
 No manual pre-processing is required; launch the dashboard and click “Run EDA Pipeline.”
+
+## Project Structure
+
+Key paths updated to reflect recent refactor:
+
+- `app.py` — Streamlit entrypoint at the repository root (replaces previous nested path)
+- `src/` — all scheduler, simulation, dashboard, and core modules (migrated from `scheduler/`)
+- `pages/` and `src/dashboard/pages/` — Streamlit multipage content
+- `Data/` — input data in Parquet/CSV
+- `outputs/` — generated artifacts (cause lists, reports)
+- `docs/` — documentation and hackathon submission details
+- `Dockerfile` — Docker image definition for local and Hugging Face deployment
 

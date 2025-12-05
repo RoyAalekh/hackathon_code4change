@@ -14,7 +14,7 @@ This documentation explains the end‑to‑end flow for the scheduler and its su
   - `docs/utils.md` — utilities (calendar)
 
 Related (outside current scope but referenced):
-- Outputs (cause lists, reports) live under `scheduler/output/` and `outputs/`.
+- Outputs (cause lists, reports) live under `src/output/` and `outputs/`.
 
 #### Quick Start Reading Order
 1) `scheduler_flowchart.md` (overview)  
@@ -24,6 +24,6 @@ Related (outside current scope but referenced):
 5) `dashboard.md` (how the UI wires it together)
 
 #### Definitions at a Glance
-- Case ripeness: classification indicating whether a case is ready to be scheduled and with what priority. Implemented in `scheduler/core/ripeness.py`.
-- Scheduling algorithm: orchestrates filtering, prioritization, overrides, and courtroom allocation. Implemented in `scheduler/core/algorithm.py`.
-- Simulation: forward model to evaluate policy performance over time. Implemented in `scheduler/simulation/engine.py` and related modules.
+- Case ripeness: classification indicating whether a case is ready to be scheduled and with what priority. Implemented in `src/core/ripeness.py`.
+- Scheduling algorithm: orchestrates filtering, prioritization, overrides, and courtroom allocation. Implemented in `src/core/algorithm.py`.
+- Simulation: forward model to evaluate policy performance over time. Implemented in `src/simulation/engine.py` and related modules.
